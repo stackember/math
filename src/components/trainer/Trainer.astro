@@ -1,0 +1,37 @@
+---
+/**
+ * Тренажер на сторінці `*-trainer.mdx`: бере `quiz` з frontmatter цієї сторінки,
+ * рендерить формули під час збирання і віддає готові дані React-острову.
+ */
+import { getEntry } from "astro:content"
+
+import { describe, lessonIdOf } from "@/lib/content"
+import { renderQuiz } from "@/lib/quiz/render"
+import { storageKey } from "@/lib/quiz/storage"
+
+import Quiz from "./Quiz"
+
+const { entry } = Astro.locals.starlightRoute
+
+if (describe(entry.id).kind !== "trainer") {
+  throw new Error(
+    `«${entry.id}»: <Trainer /> має бути на сторінці lessons/<book>/<NN-topic>/<урок>-trainer.mdx`
+  )
+}
+if (!entry.data.quiz) {
+  throw new Error(`«${entry.id}»: немає поля quiz у frontmatter`)
+}
+if (!(await getEntry("docs", lessonIdOf(entry.id)))) {
+  throw new Error(`«${entry.id}»: не знайдено урок «${lessonIdOf(entry.id)}» для цього тренажера`)
+}
+
+const quiz = await renderQuiz(entry.data.quiz)
+---
+
+<div class="not-content mt-8">
+  <Quiz client:only="react" quiz={quiz} storageKey={storageKey(entry.id)}>
+    <p slot="fallback" class="text-muted-foreground">
+      Завантаження тренажера…
+    </p>
+  </Quiz>
+</div>

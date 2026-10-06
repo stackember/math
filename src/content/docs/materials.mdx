@@ -1,0 +1,27 @@
+---
+title: Матеріали
+description: Підручники, за якими йде навчання, і корисні посилання.
+---
+
+import { Image } from "astro:assets"
+
+import algebraCover from "@/assets/materials/books/algebra-cover.jpg"
+import geometryCover from "@/assets/materials/books/geometry-cover.jpg"
+
+## Підручники
+
+<div class="not-content grid gap-6 sm:grid-cols-2">
+  <figure class="space-y-2">
+    <Image src={algebraCover} alt="Обкладинка: НМТ 2025, Математика, Алгебра, комплексне видання" width={360} class="rounded-lg" />
+    <figcaption class="text-sm"><strong>Алгебра</strong>, частина 1. QR-код на обкладинці веде на відеоуроки.</figcaption>
+  </figure>
+  <figure class="space-y-2">
+    <Image src={geometryCover} alt="Обкладинка: НМТ 2025, Математика, Геометрія, комплексне видання, частина 2" width={360} class="rounded-lg" />
+    <figcaption class="text-sm"><strong>Геометрія</strong>, частина 2, завдання рівня стандарту. QR-код веде на інтерактивний додаток.</figcaption>
+  </figure>
+</div>
+
+## Завдання для тренування
+
+- [Завдання НМТ/ЗНО з математики за темами](https://zno.osvita.ua/mathematics/tema.html)
+- [НМТ 2025 з математики онлайн](https://zno.osvita.ua/mathematics/671/)

@@ -1,0 +1,83 @@
+/*
+ * Tailwind + shadcn/ui поверх Starlight.
+ * Повний `@import "tailwindcss"` (з preflight) тут навмисно не використовується:
+ * він ламає стилі Starlight. Порядок шарів — з офіційного гайду Starlight.
+ */
+@layer base, starlight, theme, components, utilities;
+
+@import "@astrojs/starlight-tailwind";
+@import "tailwindcss/theme.css" layer(theme);
+@import "tailwindcss/utilities.css" layer(utilities);
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+/*
+ * Токени shadcn беруть кольори з теми Starlight, тому компоненти
+ * автоматично збігаються з сайтом у світлій і темній темах.
+ */
+@layer base {
+  :root {
+    --background: var(--sl-color-bg);
+    --foreground: var(--sl-color-white);
+    --card: var(--sl-color-bg);
+    --card-foreground: var(--sl-color-white);
+    --popover: var(--sl-color-bg-nav);
+    --popover-foreground: var(--sl-color-white);
+    --primary: var(--sl-color-accent);
+    --primary-foreground: var(--sl-color-text-invert);
+    --secondary: var(--sl-color-gray-6);
+    --secondary-foreground: var(--sl-color-white);
+    --muted: var(--sl-color-gray-6);
+    --muted-foreground: var(--sl-color-gray-3);
+    --accent: var(--sl-color-accent-low);
+    --accent-foreground: var(--sl-color-accent-high);
+    --destructive: var(--sl-color-red);
+    --border: var(--sl-color-hairline);
+    --input: var(--sl-color-gray-5);
+    --ring: var(--sl-color-accent);
+    --radius: 0.625rem;
+
+    /* Стани відповідей у тренажерах */
+    --success: var(--sl-color-green);
+    --success-low: var(--sl-color-green-low);
+    --success-high: var(--sl-color-green-high);
+    --destructive-low: var(--sl-color-red-low);
+    --destructive-high: var(--sl-color-red-high);
+    --warning: var(--sl-color-orange);
+    --warning-low: var(--sl-color-orange-low);
+    --warning-high: var(--sl-color-orange-high);
+  }
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-low: var(--destructive-low);
+  --color-destructive-high: var(--destructive-high);
+  --color-success: var(--success);
+  --color-success-low: var(--success-low);
+  --color-success-high: var(--success-high);
+  --color-warning: var(--warning);
+  --color-warning-low: var(--warning-low);
+  --color-warning-high: var(--warning-high);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+}
