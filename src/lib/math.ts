@@ -2,7 +2,7 @@ import type { Options } from "rehype-katex"
 
 /**
  * Спільні налаштування KaTeX: для сторінок (astro.config) і для тренажерів (quiz/render).
- * Множини пишемо як у підручниках НМТ — жирними: $\N$, $\Z$, $\Q$, $\I$, $\R$.
+ * Множини пишемо жирними, як прийнято на НМТ: $\N$, $\Z$, $\Q$, $\I$, $\R$.
  */
 export const katexOptions: Options = {
   macros: {

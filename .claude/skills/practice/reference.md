@@ -1,15 +1,15 @@
 # Формат файлу тренажера
 
-Робочий зразок: `src/content/docs/lessons/algebra/01-numbers/number-sets-trainer.mdx`.
+Робочий зразок: `src/content/docs/practice/number-sets.mdx`.
 
 ```mdx
 ---
-title: "Тренажер: числові множини"
+title: "Практика: числові множини"
 description: Одне речення — що тренуємо.
 tableOfContents: false
 sidebar:
-  label: 🏋️ Числові множини     # 🏋️ + та сама назва, що в уроку
-  order: 1                       # той самий order, що в уроку → стоїть одразу після нього
+  label: Числові множини         # та сама назва, що в теорії
+  order: 10                      # той самий order, що в теорії (інакше збирання впаде)
 quiz:
   tags:
     classify: Визначення множини числа

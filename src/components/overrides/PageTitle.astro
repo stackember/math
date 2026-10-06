@@ -1,61 +1,43 @@
 ---
 /**
- * Заголовок Starlight + автоматичні посилання між конспектом, уроками й тренажерами.
- * Нічого прописувати вручну в .md не треба: усе виводиться зі шляху сторінки.
+ * Заголовок Starlight + перехід між теорією й практикою теми.
+ * Пара шукається за однаковою назвою файлу: theory/<slug> ↔ practice/<slug>.
  */
-import Default from "@astrojs/starlight/components/PageTitle.astro"
 import { LinkButton } from "@astrojs/starlight/components"
+import Default from "@astrojs/starlight/components/PageTitle.astro"
 import { getEntry } from "astro:content"
 
-import {
-  describe,
-  href,
-  lessonIdOf,
-  menuLabel,
-  topicId,
-  topicLessons,
-  trainerIdOf,
-} from "@/lib/content"
+import { describe, href, pairOf } from "@/lib/topics"
 
-const { id } = Astro.locals.starlightRoute.entry
-const info = describe(id)
+const { entry } = Astro.locals.starlightRoute
+const page = describe(entry.id)
 
-const links: { label: string; href: string; primary?: boolean }[] = []
-
-if (info.kind === "topic") {
-  for (const { lesson, trainer } of await topicLessons(info.book, info.topic)) {
-    links.push({ label: `🧠 ${menuLabel(lesson)}`, href: href(lesson.id) })
-    if (trainer) links.push({ label: "🏋️ Тренажер", href: href(trainer.id) })
-  }
-} else if (info.kind === "lesson") {
-  links.push({ label: "📘 Конспект теми", href: href(topicId(info.book, info.topic)) })
-  const trainer = await getEntry("docs", trainerIdOf(id))
-  if (trainer) links.push({ label: "🏋️ До тренажера", href: href(trainer.id), primary: true })
-} else if (info.kind === "trainer") {
-  links.push({ label: "← Урок", href: href(lessonIdOf(id)) })
-  links.push({ label: "📘 Конспект теми", href: href(topicId(info.book, info.topic)) })
+if (page.section && entry.data.sidebar.order === undefined) {
+  throw new Error(`«${entry.id}»: додай sidebar.order у frontmatter (порядок теми, крок 10)`)
 }
+
+const pair = page.section ? await getEntry("docs", pairOf(page.section, page.slug)) : undefined
+const link =
+  pair &&
+  (page.section === "theory"
+    ? { label: "🏋️ Практика", href: href(pair.id), variant: "primary" as const }
+    : { label: "← Теорія", href: href(pair.id), variant: "secondary" as const })
 ---
 
 <Default />
-{links.length > 0 && (
-  <nav class="related" aria-label="Пов'язані сторінки">
-    {links.map((link) => (
-      <LinkButton href={link.href} variant={link.primary ? "primary" : "secondary"}>
-        {link.label}
-      </LinkButton>
-    ))}
+{link && (
+  <nav class="pair" aria-label="Теорія і практика">
+    <LinkButton href={link.href} variant={link.variant}>
+      {link.label}
+    </LinkButton>
   </nav>
 )}
 
 <style>
-  .related {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.5rem;
+  .pair {
     margin-top: 1rem;
   }
-  .related :global(.sl-link-button) {
+  .pair :global(.sl-link-button) {
     margin: 0;
     padding: 0.4rem 0.9rem;
     font-size: var(--sl-text-sm);

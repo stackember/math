@@ -9,7 +9,7 @@ export const collections = {
   docs: defineCollection({
     loader: docsLoader(),
     schema: docsSchema({
-      // `quiz` є лише на сторінках-тренажерах (`*-trainer.mdx`)
+      // `quiz` є лише на сторінках практики (`practice/<slug>.mdx`)
       extend: z.object({ quiz: quizSchema.optional() }),
     }),
   }),

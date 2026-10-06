@@ -1,28 +1,33 @@
 ---
 /**
- * Тренажер на сторінці `*-trainer.mdx`: бере `quiz` з frontmatter цієї сторінки,
+ * Тренажер на сторінці practice/<slug>.mdx: бере `quiz` з frontmatter цієї сторінки,
  * рендерить формули під час збирання і віддає готові дані React-острову.
  */
 import { getEntry } from "astro:content"
 
-import { describe, lessonIdOf } from "@/lib/content"
 import { renderQuiz } from "@/lib/quiz/render"
 import { storageKey } from "@/lib/quiz/storage"
+import { describe, pairOf } from "@/lib/topics"
 
 import Quiz from "./Quiz"
 
 const { entry } = Astro.locals.starlightRoute
+const page = describe(entry.id)
 
-if (describe(entry.id).kind !== "trainer") {
-  throw new Error(
-    `«${entry.id}»: <Trainer /> має бути на сторінці lessons/<book>/<NN-topic>/<урок>-trainer.mdx`
-  )
+if (page.section !== "practice") {
+  throw new Error(`«${entry.id}»: <Trainer /> має бути на сторінці practice/<slug>.mdx`)
 }
 if (!entry.data.quiz) {
   throw new Error(`«${entry.id}»: немає поля quiz у frontmatter`)
 }
-if (!(await getEntry("docs", lessonIdOf(entry.id)))) {
-  throw new Error(`«${entry.id}»: не знайдено урок «${lessonIdOf(entry.id)}» для цього тренажера`)
+const theory = await getEntry("docs", pairOf("practice", page.slug))
+if (!theory) {
+  throw new Error(`«${entry.id}»: немає теорії theory/${page.slug}.md до цієї практики`)
+}
+if (theory.data.sidebar.order !== entry.data.sidebar.order) {
+  throw new Error(
+    `«${entry.id}»: sidebar.order має збігатися з теорією (${theory.data.sidebar.order}), щоб меню йшло в однаковому порядку`
+  )
 }
 
 const quiz = await renderQuiz(entry.data.quiz)
