@@ -1,7 +1,13 @@
-dist
-.astro
+.next
+.source
+out
 node_modules
 package-lock.json
-src/components/ui
-src/content
+next-env.d.ts
+playwright-report
+test-results
 .claude
+# shadcn — генерований код
+src/components/ui
+# контент: Prettier міняє лапки в YAML і ламає LaTeX (\frac, \sqrt у подвійних лапках)
+content

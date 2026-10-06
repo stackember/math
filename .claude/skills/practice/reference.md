@@ -1,15 +1,11 @@
 # Формат файлу тренажера
 
-Робочий зразок: `src/content/docs/practice/number-sets.mdx`.
+Робочий зразок: `content/practice/number-sets.mdx`.
 
 ```mdx
 ---
-title: "Практика: числові множини"
+title: Числові множини           # та сама назва, що в теорії; заголовок «Практика: …» додається сам
 description: Одне речення — що тренуємо.
-tableOfContents: false
-sidebar:
-  label: Числові множини         # та сама назва, що в теорії
-  order: 10                      # той самий order, що в теорії (інакше збирання впаде)
 quiz:
   tags:
     classify: Визначення множини числа
@@ -39,14 +35,14 @@ quiz:
       why: 'Цілі: $-7$, $0$, $\sqrt{25} = 5$.'
 ---
 
-import Trainer from "@/components/trainer/Trainer.astro"
-
 ## Коротко про головне
 
 - 3–6 пунктів-шпаргалок: лише те, що потрібно для цих завдань.
 
 <Trainer />
 ```
+
+`<Trainer />` — без імпорту: компонент підставляє сторінка (`src/app/[[...slug]]/page.tsx`). Порядок у меню — як у теорії, автоматично.
 
 ## Тексти (`q`, `options`, `left`, `right`, `why`, назви тегів)
 

@@ -1,21 +1,24 @@
-# build output
-dist/
-# generated types
-.astro/
-
 # dependencies
-node_modules/
+/node_modules
 
-# logs
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-pnpm-debug.log*
+# generated
+.source
+next-env.d.ts
+*.tsbuildinfo
 
+# build
+/.next/
+/out/
 
-# environment variables
-.env
-.env.production
+# tests
+/test-results/
+/playwright-report/
+/coverage
 
-# macOS-specific files
+# env
+.env*.local
+.vercel
+
+# misc
 .DS_Store
+npm-debug.log*

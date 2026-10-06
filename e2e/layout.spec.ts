@@ -1,0 +1,26 @@
+import { expect, test } from "@playwright/test"
+
+const PAGES = ["/", "/theory/number-sets", "/theory/divisibility", "/practice/number-sets"]
+
+for (const path of PAGES) {
+  test(`${path}: без горизонтальної прокрутки`, async ({ page }) => {
+    await page.goto(path)
+    const overflow = await page.evaluate(
+      () => document.documentElement.scrollWidth - document.documentElement.clientWidth
+    )
+    expect(overflow).toBeLessThanOrEqual(0)
+  })
+}
+
+test("десктоп: контент не прилипає до змісту справа", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== "desktop", "зміст справа є лише на широкому екрані")
+  await page.setViewportSize({ width: 1440, height: 900 })
+  await page.goto("/theory/number-sets")
+
+  const content = await page.locator("#nd-page .prose").boundingBox()
+  const toc = await page.locator("#nd-toc").boundingBox()
+  if (!content || !toc) throw new Error("не знайдено текст сторінки або зміст справа")
+
+  expect(toc.x - (content.x + content.width)).toBeGreaterThanOrEqual(24)
+  expect(toc.width).toBeLessThanOrEqual(320)
+})

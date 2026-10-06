@@ -1,7 +1,7 @@
 import type { Options } from "rehype-katex"
 
 /**
- * Спільні налаштування KaTeX: для сторінок (astro.config) і для тренажерів (quiz/render).
+ * Спільні налаштування KaTeX: для сторінок (source.config.ts) і для тренажерів (quiz/render).
  * Множини пишемо жирними, як прийнято на НМТ: $\N$, $\Z$, $\Q$, $\I$, $\R$.
  */
 export const katexOptions: Options = {

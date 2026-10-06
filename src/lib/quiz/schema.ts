@@ -1,8 +1,8 @@
-import { z } from "astro/zod"
+import { z } from "zod"
 
 /**
  * Правила складу тренажера. Перевіряються під час збирання сайту
- * (`npm run check` / `npm run build`) — порушення зупиняє збирання з поясненням.
+ * (`npm run build`, а в `npm run dev` — одразу при збереженні) — порушення зупиняє збирання з поясненням.
  */
 export const RULES = {
   total: [10, 15],

@@ -1,0 +1,6 @@
+{
+  "title": "Теорія",
+  "icon": "BookOpen",
+  "defaultOpen": true,
+  "pages": ["number-sets", "modulus", "integers", "divisibility", "..."]
+}
