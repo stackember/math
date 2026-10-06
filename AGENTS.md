@@ -16,6 +16,7 @@
 - `npm run dev` — сайт на http://localhost:4321. Агенту: `npx astro dev --background`, далі `npx astro dev stop | status | logs`.
 - `npm run verify` — check + lint + format:check + test + build. **Запускати перед завершенням роботи.**
 - Окремо: `npm run check` (типи + схеми контенту), `lint`, `test`, `build`, `format`.
+- `npm run dev:clean` — dev зі скиданням кешу залежностей Vite. Потрібен, якщо в dev практика зависла на «Завантаження тренажера…» з помилкою `_jsxDEV is not a function` / `dispatcher.getOwner is not a function` (дві копії React після перезапуску сервера — баг Vite 8, vitejs/vite#20609; на `build` не впливає). Після запуску — жорстке перезавантаження сторінки.
 
 ## Структура
 
@@ -28,7 +29,8 @@ src/lib/topics.ts         угоди про сторінки: пара theory/<s
 src/lib/quiz/             схема й правила тренажера (schema.ts), перевірка, сесія, рендер формул; тести *.test.ts поруч
 src/components/trainer/   UI практики (React)
 src/components/ui/        shadcn — лише через `npx shadcn@latest add <name>`, руками не правити
-src/components/overrides/ перевизначення Starlight (PageTitle: кнопка «Практика» / «← Теорія»)
+src/components/overrides/ перевизначення Starlight: PageTitle (кнопка «Практика» / «← Теорія»),
+                          TwoColumnContent (зміст справа фіксованої ширини, контент по центру)
 ```
 
 - **Меню** будується з папок `theory/` і `practice/` автоматично. Порядок — `sidebar.order` у frontmatter з кроком 10 (10, 20, 30…), щоб нову тему можна було вставити між наявними без перейменувань.

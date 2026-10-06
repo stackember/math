@@ -25,6 +25,7 @@ export default defineConfig({
       customCss: ["katex/dist/katex.min.css", "./src/styles/global.css"],
       components: {
         PageTitle: "./src/components/overrides/PageTitle.astro",
+        TwoColumnContent: "./src/components/overrides/TwoColumnContent.astro",
       },
     }),
     react(),
