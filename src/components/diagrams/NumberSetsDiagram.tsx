@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, type ReactNode } from "react"
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react"
 
 import { cn } from "@/lib/utils"
 
@@ -57,11 +57,41 @@ const COLORS: Record<SetId, { border: string; tint: string; text: string }> = {
 }
 
 /**
+ * Скільки чекати перед скиданням підсвітки, коли курсор зійшов з числа.
+ * Якщо за цей час курсор дійшов до сусіднього числа — скидання скасовується (без мерехтіння).
+ */
+const CLEAR_DELAY_MS = 150
+
+/** Активне значення, яке скидається із затримкою («hover intent»). */
+function useDelayedClear<T>(delayMs: number) {
+  const [value, setValue] = useState<T | null>(null)
+  const timer = useRef<number | undefined>(undefined)
+
+  useEffect(() => () => window.clearTimeout(timer.current), [])
+
+  const handlers = useMemo(
+    () => ({
+      show(next: T) {
+        window.clearTimeout(timer.current)
+        setValue(next)
+      },
+      clearSoon() {
+        window.clearTimeout(timer.current)
+        timer.current = window.setTimeout(() => setValue(null), delayMs)
+      },
+    }),
+    [delayMs]
+  )
+
+  return [value, handlers] as const
+}
+
+/**
  * Вкладені множини N ⊂ Z ⊂ Q ⊂ R та I ⊂ R. Наведи / торкнись числа —
  * підсвітяться всі множини, яким воно належить.
  */
 export function NumberSetsDiagram({ sets, items }: Props) {
-  const [active, setActive] = useState<number | null>(null)
+  const [active, { show, clearSoon }] = useDelayedClear<number>(CLEAR_DELAY_MS)
   const activeSets = active === null ? null : new Set(items[active].sets)
 
   const chips = (home: SetId) =>
@@ -72,11 +102,14 @@ export function NumberSetsDiagram({ sets, items }: Props) {
           type="button"
           aria-label={item.label}
           aria-pressed={active === index}
-          onPointerEnter={(event) => event.pointerType === "mouse" && setActive(index)}
-          onFocus={() => setActive(index)}
-          onClick={() => setActive(index)}
+          // мишка: підсвітка за курсором; дотик: лишається після торкання
+          onPointerEnter={(event) => event.pointerType === "mouse" && show(index)}
+          onPointerLeave={(event) => event.pointerType === "mouse" && clearSoon()}
+          onFocus={() => show(index)}
+          onBlur={clearSoon}
+          onClick={() => show(index)}
           className={cn(
-            "rounded-md border bg-background px-2 py-0.5 text-base transition-colors outline-none",
+            "rounded-md border bg-background px-2 py-0.5 text-base transition-colors duration-100 outline-none",
             "cursor-pointer focus-visible:ring-3 focus-visible:ring-ring/50",
             active === index
               ? "border-primary bg-primary text-primary-foreground"
@@ -94,7 +127,7 @@ export function NumberSetsDiagram({ sets, items }: Props) {
         data-set={id}
         data-state={state}
         className={cn(
-          "flex flex-col gap-2 rounded-xl border-2 p-3 transition-colors duration-200",
+          "flex flex-col gap-2 rounded-xl border-2 p-3 transition-colors duration-100",
           state === "outside" ? "border-dashed border-border" : COLORS[id].border,
           state === "member" && COLORS[id].tint,
           className
@@ -102,7 +135,7 @@ export function NumberSetsDiagram({ sets, items }: Props) {
       >
         <div
           className={cn(
-            "text-sm font-medium transition-colors",
+            "text-sm font-medium transition-colors duration-100",
             state === "outside" ? "text-muted-foreground" : COLORS[id].text
           )}
         >
@@ -114,10 +147,7 @@ export function NumberSetsDiagram({ sets, items }: Props) {
   }
 
   return (
-    <figure
-      className="not-prose my-6 space-y-3"
-      onPointerLeave={(event) => event.pointerType === "mouse" && setActive(null)}
-    >
+    <figure className="not-prose my-6 space-y-3">
       {box(
         "R",
         <>
