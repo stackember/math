@@ -121,7 +121,7 @@ export const score = (s: Session) => s.results.filter(Boolean).length
 export const wrongQuestions = (s: Session) =>
   s.steps.filter((_, i) => s.results[i] === false).map((step) => step.question)
 
-/** Скільки правильних по кожному тегу (правилу уроку). */
+/** Скільки правильних по кожному тегу (правилу теми). */
 export function tagStats(s: Session): Map<string, { correct: number; total: number }> {
   const stats = new Map<string, { correct: number; total: number }>()
   s.steps.forEach((step, i) => {

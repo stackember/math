@@ -20,8 +20,8 @@ function verdict(share: number, mode: Session["mode"]): string {
   }
   if (share === 1) return "Ідеально! Тему засвоєно."
   if (share >= 0.8) return "Добре! Повтори помилки — і буде ідеально."
-  if (share >= 0.5) return "Непогано, але варто перечитати урок."
-  return "Повернись до уроку і спробуй ще раз."
+  if (share >= 0.5) return "Непогано, але варто перечитати теорію."
+  return "Повернись до теорії і спробуй ще раз."
 }
 
 export function Results({ session, tags, onRetryWrong, onRestart }: Props) {

@@ -1,8 +1,8 @@
 import { expect, test } from "@playwright/test"
 
-const PAGES = ["/", "/theory/number-sets", "/theory/divisibility", "/practice/number-sets"]
+import { CONTENT_URLS } from "./content"
 
-for (const path of PAGES) {
+for (const path of CONTENT_URLS) {
   test(`${path}: без горизонтальної прокрутки`, async ({ page }) => {
     await page.goto(path)
     const overflow = await page.evaluate(

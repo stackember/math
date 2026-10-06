@@ -1,5 +1,25 @@
 import { expect, test } from "@playwright/test"
 
+import { CONTENT_URLS } from "./content"
+
+// нові теми й практики потрапляють у цю перевірку самі
+for (const url of CONTENT_URLS) {
+  test(`${url}: сторінка відкривається без помилок`, async ({ page }) => {
+    const errors: string[] = []
+    page.on("pageerror", (error) => errors.push(error.message))
+    page.on("console", (message) => {
+      if (message.type() === "error") errors.push(message.text())
+    })
+
+    const response = await page.goto(url)
+    expect(response?.status()).toBe(200)
+    await expect(page.getByRole("heading", { level: 1 })).toBeVisible()
+    await page.waitForLoadState("networkidle")
+    await expect(page.locator(".katex-error")).toHaveCount(0)
+    expect(errors).toEqual([])
+  })
+}
+
 test("головна: меню теорії й практики в порядку тем", async ({ page }) => {
   await page.goto("/")
   await expect(page).toHaveTitle("Математика · НМТ")

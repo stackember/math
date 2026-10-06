@@ -15,6 +15,12 @@ describe("renderInline", () => {
     await expect(renderInline("- пункт списку")).rejects.toThrow(/один рядок/)
     await expect(renderInline("абзац 1\n\nабзац 2")).rejects.toThrow(/один рядок/)
   })
+
+  it("зламана формула — помилка з текстом, а не червоний напис на сторінці", async () => {
+    const broken = "Дріб $\\frac{1}{$ без знаменника"
+    await expect(renderInline(broken)).rejects.toThrow(/Помилка у формулі/)
+    await expect(renderInline(broken)).rejects.toThrow(/без знаменника/)
+  })
 })
 
 describe("renderQuiz", () => {

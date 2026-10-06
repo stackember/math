@@ -1,6 +1,9 @@
 import { expect, test, type Page } from "@playwright/test"
 
-const URL = "/practice/number-sets"
+import { PRACTICE_SLUGS } from "./content"
+
+/** Еталонний тренажер для перевірки клавіатури й короткої відповіді. */
+const REFERENCE = "number-sets"
 
 /** Збирає помилки сторінки: гідрація, дві копії React тощо мають валити тест. */
 function collectErrors(page: Page) {
@@ -17,10 +20,16 @@ const card = (page: Page) => page.locator("[data-slot=card]")
 const feedback = (page: Page) => page.locator("[data-slot=alert]")
 const shortInput = (page: Page) => page.getByRole("textbox", { name: "Відповідь" })
 
-/** Тренажер вантажиться лише в браузері — чекаємо, доки з'явиться завдання. */
-async function openTrainer(page: Page) {
-  await page.goto(URL)
-  await expect(card(page)).toContainText("Питання 1 / 13")
+/**
+ * Відкриває тренажер і повертає кількість завдань.
+ * Тренажер вантажиться лише в браузері — чекаємо, доки з'явиться перше завдання.
+ */
+async function openTrainer(page: Page, slug: string) {
+  await page.goto(`/practice/${slug}`)
+  await expect(card(page)).toContainText(/Питання 1 \/ \d+/)
+  const match = /Питання 1 \/ (\d+)/.exec(await card(page).innerText())
+  if (!match) throw new Error("не знайдено лічильник завдань")
+  return Number(match[1])
 }
 
 /** Дає будь-яку відповідь на поточне завдання (правильність перевіряють юніт-тести). */
@@ -39,44 +48,47 @@ async function answerCurrent(page: Page) {
   await shortInput(page).fill("1")
 }
 
-test("повне проходження: пояснення, результат і збережений рекорд", async ({ page }) => {
-  const errors = collectErrors(page)
-  await openTrainer(page)
+// нова практика потрапляє в повне проходження автоматично
+for (const slug of PRACTICE_SLUGS) {
+  test(`${slug}: повне проходження, пояснення, результат і збережений рекорд`, async ({ page }) => {
+    const errors = collectErrors(page)
+    const total = await openTrainer(page, slug)
 
-  for (let i = 1; i <= 13; i++) {
-    await expect(card(page)).toContainText(`Питання ${i} / 13`)
-    await answerCurrent(page)
-    await page.getByRole("button", { name: "Перевірити" }).click()
-    await expect(feedback(page)).toContainText(/Правильно|Неправильно/)
-    await page.getByRole("button", { name: i === 13 ? "Результат" : /^Далі/ }).click()
-  }
+    for (let i = 1; i <= total; i++) {
+      await expect(card(page)).toContainText(`Питання ${i} / ${total}`)
+      await answerCurrent(page)
+      await page.getByRole("button", { name: "Перевірити" }).click()
+      await expect(feedback(page)).toContainText(/Правильно|Неправильно/)
+      await page.getByRole("button", { name: i === total ? "Результат" : /^Далі/ }).click()
+    }
 
-  await expect(card(page)).toContainText("/ 13")
-  await expect(page.getByRole("list", { name: "Результат за правилами" })).toBeVisible()
-  await expect(page.getByRole("button", { name: "Пройти ще раз" })).toBeVisible()
+    await expect(card(page)).toContainText(`/ ${total}`)
+    await expect(page.getByRole("list", { name: "Результат за правилами" })).toBeVisible()
+    await expect(page.getByRole("button", { name: "Пройти ще раз" })).toBeVisible()
 
-  await page.reload()
-  await expect(page.getByText(/Найкращий результат: \d+\/13/)).toBeVisible()
-  expect(errors).toEqual([])
-})
+    await page.reload()
+    await expect(page.getByText(new RegExp(`Найкращий результат: \\d+/${total}`))).toBeVisible()
+    expect(errors).toEqual([])
+  })
+}
 
 test("клавіатура: цифра обирає варіант, Enter перевіряє і веде далі", async ({ page }) => {
-  await openTrainer(page)
+  const total = await openTrainer(page, REFERENCE)
 
-  // перші завдання — легкі, а всі легкі тут з вибором відповіді
+  // перші завдання — легкі, а всі легкі в еталонному тренажері — з вибором відповіді
   await page.keyboard.press("2")
   await expect(page.getByRole("radio").nth(1)).toHaveAttribute("aria-checked", "true")
   await page.keyboard.press("Enter")
   await expect(feedback(page)).toContainText(/Правильно|Неправильно/)
   await page.keyboard.press("Enter")
-  await expect(card(page)).toContainText("Питання 2 / 13")
+  await expect(card(page)).toContainText(`Питання 2 / ${total}`)
 })
 
 test("нечислова коротка відповідь — підказка, а не помилка", async ({ page }) => {
-  await openTrainer(page)
+  const total = await openTrainer(page, REFERENCE)
 
-  for (let i = 1; i <= 13; i++) {
-    await expect(card(page)).toContainText(`Питання ${i} / 13`)
+  for (let i = 1; i <= total; i++) {
+    await expect(card(page)).toContainText(`Питання ${i} / ${total}`)
     if (await shortInput(page).count()) break
     await answerCurrent(page)
     await page.getByRole("button", { name: "Перевірити" }).click()

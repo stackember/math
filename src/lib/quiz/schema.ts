@@ -21,7 +21,7 @@ const text = z.string().trim().min(1)
 const common = {
   /** 1 — легке, 2 — рівень НМТ, 3 — пастка. */
   level: z.union([z.literal(1), z.literal(2), z.literal(3)]),
-  /** Ключ з `tags`: яке правило уроку перевіряє завдання. */
+  /** Ключ з `tags`: яке правило теми перевіряє завдання. */
   tag: z.string(),
   /** Умова. Markdown + формули `$...$`. */
   q: text,

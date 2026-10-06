@@ -5,7 +5,7 @@ import remarkParse from "remark-parse"
 import remarkRehype from "remark-rehype"
 import { unified } from "unified"
 
-import { katexOptions } from "../math"
+import { katexOptions, rehypeKatexStrict } from "../math"
 import type { Question, Quiz } from "./schema"
 
 const processor = unified()
@@ -13,13 +13,22 @@ const processor = unified()
   .use(remarkMath)
   .use(remarkRehype)
   .use(rehypeKatex, katexOptions)
+  .use(rehypeKatexStrict)
   .use(rehypeStringify)
 
 const SINGLE_PARAGRAPH = /^<p>([\s\S]*)<\/p>\n?$/
 
 /** Рядок з Markdown і `$формулами$` → HTML для одного рядка тексту. */
 export async function renderInline(markdown: string): Promise<string> {
-  const html = String(await processor.process(markdown))
+  let html: string
+  try {
+    html = String(await processor.process(markdown))
+  } catch (error) {
+    // зламана формула: додаємо сам текст, щоб його було легко знайти у frontmatter
+    throw new Error(
+      `${error instanceof Error ? error.message : String(error)} — у тексті «${markdown}»`
+    )
+  }
   const match = SINGLE_PARAGRAPH.exec(html)
   if (!match || match[1].includes("<p>")) {
     throw new Error(
