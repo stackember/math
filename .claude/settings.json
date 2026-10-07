@@ -1,0 +1,48 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm run *)",
+      "Bash(npm test*)",
+      "Bash(npx tsx *)",
+      "Bash(npx vitest *)",
+      "Bash(npx playwright test*)",
+      "Bash(npx prettier *)",
+      "Bash(npx eslint *)",
+      "Bash(npx knip*)",
+      "Bash(npx shadcn@latest add *)",
+      "Bash(python3 *)",
+      "Bash(node *)",
+      "Bash(git status*)",
+      "Bash(git diff*)",
+      "Bash(git log*)",
+      "Bash(git add *)",
+      "Bash(git commit *)",
+      "Bash(git mv *)"
+    ],
+    "deny": [
+      "Edit(**/src/shared/ui/**)",
+      "Write(**/src/shared/ui/**)",
+      "Bash(npm install * --force*)",
+      "Bash(npm install * --legacy-peer-deps*)",
+      "Bash(npm i * --force*)",
+      "Bash(npm i * --legacy-peer-deps*)",
+      "Bash(git push --force*)",
+      "Bash(git push -f*)"
+    ]
+  },
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$CLAUDE_PROJECT_DIR/scripts/hooks/after-edit.mjs\"",
+            "timeout": 60,
+            "statusMessage": "Перевірка контенту / форматування…"
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -7,7 +7,7 @@ import { notFound } from "next/navigation"
 import { getMDXComponents } from "@/features/content/components/mdx-components"
 import { TopicSwitch } from "@/features/content/components/topic-switch"
 import { source } from "@/features/content/model/source"
-import { isPractice, topicOf } from "@/features/content/model/topic"
+import { topicOf } from "@/features/content/model/topic"
 import { Trainer } from "@/features/trainer/components/trainer"
 import { EXAM } from "@/features/trainer/model/exam"
 
@@ -32,7 +32,6 @@ export default async function Page(props: PageProps<"/[[...slug]]">) {
   if (!page) notFound()
 
   const topic = topicOf(page.slugs)
-  const practice = isPractice(page.slugs)
   const MDX = page.data.body
 
   return (

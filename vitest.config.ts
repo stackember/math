@@ -9,7 +9,7 @@ export default defineConfig({
     alias: { "@": local("./src") },
   },
   test: {
-    include: ["src/**/*.test.ts"],
+    include: ["src/**/*.test.ts", "scripts/**/*.test.ts"],
     // model-тести йдуть у Node; hooks і компоненти вмикають jsdom рядком `// @vitest-environment jsdom`
     setupFiles: ["src/shared/test/setup.ts"],
   },

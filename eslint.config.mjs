@@ -63,6 +63,7 @@ export default defineConfig([
         { type: "ui", pattern: "src/shared/ui" },
         { type: "lib", pattern: "src/shared/lib" },
         { type: "test", pattern: "src/shared/test" },
+        { type: "scripts", pattern: "scripts" },
         segment("model"),
         segment("hooks"),
         segment("components"),
@@ -114,6 +115,9 @@ export default defineConfig([
             { from: element("ui"), allow: { to: element(["ui", "lib"]) } },
             { from: element("lib"), allow: { to: element("lib") } },
             { from: element("test"), allow: { to: element("*") } },
+            // scripts (перевірка контенту, hooks) — лише чиста логіка model і lib, без React і Next
+            { from: element("scripts"), allow: { to: element(["model", "lib", "scripts"]) } },
+            { from: element("scripts"), allow: { to: { module: { origin: "core" } } } },
 
             {
               from: element("components"),
