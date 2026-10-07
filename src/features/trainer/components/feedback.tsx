@@ -1,0 +1,46 @@
+import { CircleAlert, CircleCheck, CircleX } from "lucide-react"
+
+import { Alert, AlertDescription, AlertTitle } from "@/shared/ui/alert"
+import { cn } from "@/shared/lib/utils"
+
+import { answerHtml } from "../model/answer-text"
+import type { Step } from "../model/session"
+import { Html } from "./shared"
+
+export function Feedback({ step, correct }: { step: Step; correct: boolean }) {
+  return (
+    <Alert
+      className={cn(
+        "mt-5 border-l-4 px-4 py-3",
+        correct ? "border-success bg-success-low" : "border-destructive bg-destructive-low"
+      )}
+    >
+      {correct ? (
+        <CircleCheck className="text-success" />
+      ) : (
+        <CircleX className="text-destructive" />
+      )}
+      <AlertTitle className="text-base font-semibold text-foreground">
+        {correct ? (
+          "Правильно"
+        ) : (
+          <>
+            Неправильно. Відповідь: <Html html={answerHtml(step)} />
+          </>
+        )}
+      </AlertTitle>
+      <AlertDescription className="text-base text-foreground">
+        <Html html={step.question.why} />
+      </AlertDescription>
+    </Alert>
+  )
+}
+
+export function Warning({ text }: { text: string }) {
+  return (
+    <Alert className="mt-5 border-l-4 border-warning bg-warning-low px-4 py-3">
+      <CircleAlert className="text-warning" />
+      <AlertTitle className="text-base text-foreground">{text}</AlertTitle>
+    </Alert>
+  )
+}

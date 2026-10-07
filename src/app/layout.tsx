@@ -7,9 +7,9 @@ import { Sigma } from "lucide-react"
 import type { Metadata } from "next"
 import { Inter } from "next/font/google"
 
-import { source } from "@/content/source"
-import { translations } from "@/lib/i18n"
-import { EXAM } from "@/trainer/exam"
+import { source } from "@/features/content/model/source"
+import { translations } from "@/shared/lib/i18n"
+import { EXAM } from "@/features/trainer/model/exam"
 
 const inter = Inter({ subsets: ["latin", "cyrillic"] })
 

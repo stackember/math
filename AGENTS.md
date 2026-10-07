@@ -11,10 +11,10 @@
 ## Стек
 
 - **Next.js 16** (App Router, Turbopack) + **Fumadocs 16**: меню, пошук, зміст сторінки, світла/темна тема. UI Fumadocs — пакет `@fumadocs/base-ui` (встановлений під іменем `fumadocs-ui`).
-- **fumadocs-mdx 15**: колекції через macro-виклик у `src/content/source.ts`, глобальні MDX-плагіни — у `source.config.ts`.
+- **fumadocs-mdx 15**: колекції через macro-виклик у `src/features/content/model/source.ts`, глобальні MDX-плагіни — у `source.config.ts`.
 - **KaTeX 0.19** (`remark-math` + `rehype-katex` + наш `rehypeKatexStrict`).
 - **React 19 + shadcn/ui** (стиль `base-nova`, примітиви Base UI) + **Tailwind 4**. Fumadocs бере кольори з тих самих токенів shadcn (`fumadocs-ui/css/shadcn.css`) — одна палітра.
-- **Zod 4**, **TypeScript 6**, **Vitest**, **Playwright**, ESLint (`eslint-config-next`), Prettier.
+- **Zod 4**, **TypeScript 6**, **Vitest** + **@testing-library/react** (jsdom), **Playwright**, ESLint (`eslint-config-next`, `eslint-plugin-boundaries`, `eslint-plugin-check-file`), **knip**, Prettier.
 
 Перш ніж писати код під Next.js / Fumadocs / shadcn — звір з актуальною документацією. Пам'ять моделі може бути застарілою:
 
@@ -25,8 +25,8 @@
 ## Команди
 
 - `npm run dev` — сайт на http://localhost:3000.
-- `npm run verify` — typecheck + lint + format:check + test + build + test:e2e. **Запускати перед завершенням роботи.**
-- Окремо: `typecheck`, `lint`, `format`, `test` (Vitest), `build`, `test:e2e` (Playwright, потребує свіжого `build`; сервер на порту 3100).
+- `npm run verify` — typecheck + lint + knip + format:check + test + build + test:e2e. **Запускати перед завершенням роботи.**
+- Окремо: `typecheck`, `lint` (разом із межами архітектури й іменами файлів), `knip` (мертві експорти, файли, залежності), `format`, `test` (Vitest), `build`, `test:e2e` (Playwright, потребує свіжого `build`; сервер на порту 3100).
 
 ## Структура
 
@@ -39,33 +39,53 @@ content/                          контент (MDX): одна папка — 
   <розділ>/<тема>/practice.mdx    практика (тренажер у frontmatter) → /<розділ>/<тема>/practice
   <розділ>/<тема>/<сторінка>.mdx  підсторінка великої теми (за потреби)
 source.config.ts                  MDX-плагіни: KaTeX (суворий), читабельні формули в пошуку
-src/app/                          лише маршрути: layout, [[...slug]]/page, api/search, error, not-found, global.css
-src/content/                      читання контенту: source (loader), frontmatter (схеми за іменем файлу),
-                                  topic (тема/практика за slugs), page-tree (меню: назва «Практика», згортання папок)
-src/trainer/                      тренажер: exam (профіль іспиту), schema, check, session, storage,
-                                  render (server-only), Trainer.tsx (server-only) → ui/TrainerLoader → ui/TrainerCard
-src/diagrams/                     інтерактивні схеми для теорії (напр. <NumberSets />)
-src/components/mdx.tsx            компоненти, доступні в MDX без імпорту
-src/components/TopicSwitch.tsx    кнопка «Практика» / «← Теорія»
-src/components/ui/                shadcn — лише через `npx shadcn@latest add <name>`, руками не правити
-src/lib/                          утиліти без домену: math (KaTeX), latex-text (пошук), i18n, utils
+src/                              три рівні: app → features → shared
+  app/                            рівень 1, лише маршрути Next: layout, [[...slug]]/page, api/search, error, not-found, global.css
+  features/                       рівень 2, можливості; кожна — сегменти model/ hooks/ components/
+    content/                      контент як дані — єдина можливість, що знає Fumadocs
+      model/                      source (loader), frontmatter (схеми за іменем файлу + рендер тренажера), topic, page-tree
+      components/                 topic-switch, mdx-components (реєстр компонентів для MDX)
+    trainer/                      тренажер — без Next і Fumadocs
+      model/                      exam (профіль іспиту), schema, check, session, storage, verdict, answer-text,
+                                  render (лише для збирання: Markdown+KaTeX → HTML)
+      hooks/                      use-trainer-session, use-progress, use-trainer-keyboard, use-step-focus, use-mounted
+      components/                 trainer (вхід для сторінки), trainer-card, choice-answer, match-answer, short-answer,
+                                  feedback, results, shared
+    diagram/                      схеми для теорії, усі в одних сегментах: model/number-sets, hooks/use-delayed-clear,
+                                  components/number-sets (сервер, KaTeX) + number-sets-diagram (клієнт)
+  shared/                         рівень 3, спільне без домену; про features не знає
+    ui/                           shadcn — лише через `npx shadcn@latest add <name>`, руками не правити
+    lib/                          math (KaTeX), latex-text (пошук), i18n, utils
+    test/                         налаштування Vitest
 e2e/                              Playwright-тести; e2e/content.ts знаходить усі сторінки й практики
 ```
 
-**Розбивка коду.** Одна можливість — одна папка верхнього рівня в `src/`. Імпорти йдуть лише «вниз»: `app` → `content`, `trainer`, `diagrams` → `components`, `lib`; `content` може імпортувати схему з `trainer`, навпаки — ні. У `components/` і `lib/` — лише те, що потрібне двом і більше можливостям. Клієнтський файл (`"use client"`) бере з `trainer/` лише типи й чисті функції; серверні модулі починаються з `import "server-only"`.
+## Розбивка коду
 
-## Іменування
+Три рівні видно з дерева: `app` (маршрути) → `features` (можливості) → `shared` (спільне без домену). Кожна можливість — папка в `src/features/` (`content`, `trainer`, `diagram`), усередині три сегменти; нова схема — це нові файли в сегментах `diagram`, а не нова папка:
 
-- **Контент:** англійською в kebab-case, без номерів (`modulus/`): адреси сторінок і збережені результати не ламаються, коли змінюється порядок.
-- **Код:** React-компоненти — PascalCase (`TopicSwitch.tsx`, `TrainerCard.tsx`); решта модулів — kebab-case (`latex-text.ts`); `src/components/ui/` — як генерує shadcn.
-- Юніт-тести — поруч із кодом: `<модуль>.test.ts`.
+| Сегмент       | Що там                                           | Чого там немає           | Тести                                             |
+| ------------- | ------------------------------------------------ | ------------------------ | ------------------------------------------------- |
+| `model/`      | типи, схеми, reducer, обчислення — чисті функції | React, Next, `window`    | Vitest у Node                                     |
+| `hooks/`      | React-hooks: стан + ефекти, без розмітки         | JSX, Next, Fumadocs      | `// @vitest-environment jsdom` + `renderHook`     |
+| `components/` | розмітка: props → JSX; стан лише через hooks     | `localStorage`, Fumadocs | RTL там, де є умовна логіка; решту покривають e2e |
+
+Правила, які перевіряє `npm run lint` (`eslint-plugin-boundaries`, конфіг — `eslint.config.mjs`):
+
+1. Залежності лише вниз: `app` → `features` → `shared`. `shared` ніколи не імпортує з `features` чи `app`. Усередині можливості: `components` → `hooks` → `model`.
+2. Між можливостями імпортів немає, крім двох: `content/model` → `trainer/model` (схема frontmatter перевіряє тренажер) і `content/components` → `components` будь-якої можливості (реєстр MDX).
+3. `next/*` і `fumadocs-*` знають лише `app` і `content`. У `model/` немає `react`.
+4. `model/render.ts` — лише для збирання: його імпортує тільки `content/model/frontmatter.ts`.
+5. Файл у `src/` поза `app/`, `features/<можливість>/<сегмент>/` чи `shared/{ui,lib,test}/` — помилка `no-unknown-files`. Потрібне нове правило — міняй конфіг, не обходь.
+6. Файли — kebab-case (перевіряє лінт); компонент експортується PascalCase (`trainer-card.tsx` → `TrainerCard`). Barrel-файлів `index.ts` немає — імпорти прямі.
+7. `knip` у `verify`: мертві експорти, файли й залежності — помилка. Не експортуй «про запас».
 
 ## Як додати
 
 - **Тему:** папка `content/<розділ>/<slug>/` з `index.mdx` (`title`, `description`) + slug у `pages` файлу `content/<розділ>/meta.json` у потрібне місце (порядок вивчення). Без цього тема все одно з'явиться (через `"..."`), але в кінці списку. Велику тему ділити на підсторінки в тій самій папці (порядок — `meta.json` теми: `["...", "practice"]`).
 - **Розділ:** папка `content/<розділ>/` з `meta.json` (`title`, `icon` з lucide, `pages`) + slug у `content/meta.json`.
 - **Практику:** тільки skill `/practice <slug>`. Файл `practice.mdx` поруч з `index.mdx`; тренажер, пункт меню «Практика», кнопки переходу й тести з'являються самі.
-- **Схему для теорії:** компонент у `src/diagrams/` + реєстрація в `src/components/mdx.tsx` + e2e-тест (див. «Схеми й ілюстрації»).
+- **Схему для теорії:** папка `src/features/diagram/` за сегментами + реєстрація в `src/features/content/components/mdx-components.tsx` + e2e-тест (див. «Схеми й ілюстрації»).
 - **Компонент shadcn:** `npx shadcn@latest add <name>`.
 
 ## Формат теорії
@@ -82,40 +102,42 @@ e2e/                              Playwright-тести; e2e/content.ts знах
 ## Формули й MDX
 
 - Inline `$...$`, блок `$$...$$` з порожніми рядками навколо.
-- Множини — макроси `\N \Z \Q \I \R` (жирні; `src/lib/math.ts`).
+- Множини — макроси `\N \Z \Q \I \R` (жирні; `src/shared/lib/math.ts`).
 - Десяткова кома у формулі — `0{,}25`; поза формулами — `0,25`. Списки чисел з дробами — через `;`.
 - Мінус у формулі — звичайний `-`; у тексті поза формулами — `−`.
 - У таблицях модуль — `\lvert x \rvert`: символ `|` ламає таблицю.
 - У MDX `{`, `}` і `<` поза формулами й кодом — це JSX: не використовувати.
-- Компоненти без імпорту: `Callout` (`type`: `idea`, `warn`, `info`, `success`, `error`), `Steps`/`Step`, `Cards`/`Card`, схеми (`<NumberSets />`). Новий компонент для MDX — реєструвати в `src/components/mdx.tsx`.
+- Компоненти без імпорту: `Callout` (`type`: `idea`, `warn`, `info`, `success`, `error`), `Steps`/`Step`, `Cards`/`Card`, схеми (`<NumberSets />`). Новий компонент для MDX — реєструвати в `src/features/content/components/mdx-components.tsx`.
 - Усередині `<Callout>` / `<Step>` — порожній рядок після відкриваючого й перед закриваючим тегом, інакше Markdown (списки) не розбереться.
 - Prettier контент не форматує (`content/` у `.prettierignore`): він міняє лапки в YAML і ламає LaTeX.
 
 ## Схеми й ілюстрації
 
-- Схема, що показує ідею теми (вкладеність, відстань, поділ), — свій компонент у `src/diagrams/`: серверна частина рендерить формули KaTeX, клієнтська (`"use client"`) — лише інтерактив. Кольори — Tailwind з `dark:`-варіантами, стан — у `data-*` атрибутах (на них спираються e2e-тести).
+- Схема, що показує ідею теми (вкладеність, відстань, поділ), — своя папка `src/features/diagram/`: `model/` — дані без React, `components/` — серверна частина рендерить формули KaTeX, клієнтська (`"use client"`) — лише інтерактив. Кольори — Tailwind з `dark:`-варіантами, стан — у `data-*` атрибутах (на них спираються e2e-тести).
 - Графіки функцій, координатна площина, геометрія — бібліотека Mafs (ставити, коли з'явиться перша така тема).
 - Блок-схеми алгоритмів — Mermaid (так само — лише за потреби).
 
 ## Архітектурні рішення
 
-- **Профіль іспиту** — `src/trainer/exam.ts`: назва сайту, літери варіантів, форма відповідності, склад тренажера, рівні. Усе, що залежить від формату НМТ, лише там.
+- **Профіль іспиту** — `src/features/trainer/model/exam.ts`: назва сайту, літери варіантів, форма відповідності, склад тренажера, рівні. Усе, що залежить від формату НМТ, лише там.
 - **Тренажер показує сторінка сама**, якщо у frontmatter є `trainer` (`src/app/[[...slug]]/page.tsx`). У MDX нічого вставляти не треба.
-- **Тренажер рендериться лише в браузері** (`next/dynamic` з `ssr: false` у `TrainerLoader`): порядок завдань випадковий, результати — з `localStorage`; серверний HTML розійшовся б із браузерним (помилка гідрації). Формули завдань рендеряться на сервері під час збирання (`Trainer` → `renderTrainer`).
+- **Формули завдань рендеряться під час збирання у схемі frontmatter** (`trainerSchema.transform(renderTrainer)` у `src/features/content/model/frontmatter.ts`): у `page.data.trainer` уже HTML, KaTeX у браузер не потрапляє, а тренажер не має серверного коду.
+- **Картка тренажера монтується після гідрації** (`useMounted`): порядок завдань випадковий, результати — з `localStorage`; до монтування сервер і браузер показують однакову заглушку. `next/dynamic` не потрібен.
+- **Клавіатура тренажера** (`use-trainer-keyboard`): Enter і цифри працюють, коли фокус у картці або просто на сторінці; меню, пошук, кнопки й поля поза карткою не зачіпає; автоповтор і Cmd/Ctrl/Alt ігнорує.
 - **Перевірки під час збирання** (повідомлення — українською, з місцем помилки):
-  - схема frontmatter залежить від імені файлу (`src/content/frontmatter.ts`): `practice.mdx` зобов'язаний мати `trainer`, решта сторінок — не можуть;
-  - склад і оформлення тренажера — схема в `src/trainer/schema.ts`;
+  - схема frontmatter залежить від імені файлу: `practice.mdx` зобов'язаний мати `trainer`, решта сторінок — не можуть;
+  - склад і оформлення тренажера — схема в `src/features/trainer/model/schema.ts`;
   - зламана формула в MDX чи в тексті тренажера — `rehypeKatexStrict` (сам `rehype-katex` лише малює червоний текст і збирання не зупиняє);
   - текст тренажера не в один рядок (список, абзаци) — `renderInline`.
 - **Пошук** — вбудований Orama Fumadocs (`/api/search`), багатомовний. Формули в індексі — текстом через `latexToText`. Тексти завдань з frontmatter не індексуються.
 - **Ключ збережених результатів** — `trainer:<slug теми>` (без розділу): переміщення теми між розділами не стирає прогрес; slug теми після публікації не змінювати. Старий ключ `trainer:practice/<slug>` читається як запасний.
 - **Помилка під час показу сторінки** — `src/app/error.tsx` (меню лишається), а не порожній екран.
-- Підписи інтерфейсу Fumadocs — у `src/lib/i18n.ts`; новий рядок інтерфейсу без перекладу — додати туди.
+- Підписи інтерфейсу Fumadocs — у `src/shared/lib/i18n.ts`; новий рядок інтерфейсу без перекладу — додати туди.
 
 ## Тести
 
 - **Автоматично для нового контенту:** кожна сторінка з `content/` перевіряється на 200, помилки в консолі й червоні формули; кожна практика — повним проходженням (`e2e/content.ts` знаходить їх сам).
-- **Логіка в `src/content/`, `src/trainer/`, `src/lib/`** — юніт-тести поруч із модулем.
+- **`model/`** — юніт-тести поруч із модулем, у Node. **`hooks/`** — `renderHook` з `@testing-library/react`, файл починається з `// @vitest-environment jsdom`. Компоненти з умовною логікою — RTL; решту покривають e2e.
 - **Нова схема чи інтерактивний компонент** — e2e-тест у `e2e/` через `data-*` стани (зразок — `e2e/diagrams.spec.ts`).
 - Локатори тренажера в e2e — у межах картки `[data-slot=card]`, щоб таблиці й поля шпаргалки не заважали.
 - Кліки одразу після завантаження сторінки можуть потрапити до гідрації React: обгортати в `expect(...).toPass()` (зразок — пошук у `e2e/site.spec.ts`).
@@ -132,4 +154,4 @@ e2e/                              Playwright-тести; e2e/content.ts знах
 
 - Кожну числову відповідь і приклад перевіряй обчисленням (`python3` / `node`), перш ніж записати.
 - Зміни у вигляді перевіряй у браузері (`npm run dev`) і e2e-тестами, а не лише збиранням.
-- Не створюй файли «про запас»: порожні теми, практику без запиту.
+- Не створюй файли «про запас»: порожні теми, практику без запиту, експорти без споживача.

@@ -11,7 +11,7 @@ argument-hint: <slug теми, напр. modulus>
 
 Інтерфейс, перевірка відповідей і правила складу вже є — твоя робота лише **вміст**.
 Формат файлу з прикладами всіх типів — [reference.md](reference.md).
-Правила складу — `RULES` у `src/trainer/schema.ts` (значення з профілю іспиту `src/trainer/exam.ts`; збирання їх перевіряє).
+Правила складу — `RULES` у `src/features/trainer/model/schema.ts` (значення з профілю іспиту `src/features/trainer/model/exam.ts`; збирання їх перевіряє).
 
 ## Кроки
 

@@ -8,6 +8,6 @@ playwright-report
 test-results
 .claude
 # shadcn — генерований код
-src/components/ui
+src/shared/ui
 # контент: Prettier міняє лапки в YAML і ламає LaTeX (\frac, \sqrt у подвійних лапках)
 content

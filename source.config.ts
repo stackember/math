@@ -2,12 +2,12 @@ import { defineConfig } from "fumadocs-mdx/config"
 import rehypeKatex from "rehype-katex"
 import remarkMath from "remark-math"
 
-import { latexToText } from "./src/lib/latex-text"
-import { katexOptions, rehypeKatexStrict } from "./src/lib/math"
+import { latexToText } from "./src/shared/lib/latex-text"
+import { katexOptions, rehypeKatexStrict } from "./src/shared/lib/math"
 
 /**
  * Глобальні налаштування MDX: формули KaTeX поверх стандартного набору плагінів Fumadocs.
- * Колекції (що і звідки читати, схема frontmatter) — у src/content/source.ts.
+ * Колекції (що і звідки читати, схема frontmatter) — у src/features/content/model/source.ts.
  */
 export default defineConfig({
   mdxOptions: {

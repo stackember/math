@@ -1,6 +1,6 @@
 "use client"
 
-import { Button } from "@/components/ui/button"
+import { Button } from "@/shared/ui/button"
 
 /**
  * Помилка під час показу сторінки (наприклад, у тренажері): пояснення замість порожнього екрана.
