@@ -3,14 +3,10 @@ import { useEffect, useRef } from "react"
 import { Input } from "@/shared/ui/input"
 import { cn } from "@/shared/lib/utils"
 
-interface Props {
-  value: string
-  checked: boolean
-  correct: boolean
-  onChange: (value: string) => void
-}
+import { input } from "../model/question/short"
+import type { AnswerProps } from "./shared"
 
-export function ShortAnswer({ value, checked, correct, onChange }: Props) {
+export function ShortAnswer({ draft, checked, correct, onAnswer }: AnswerProps<"short">) {
   const ref = useRef<HTMLInputElement>(null)
 
   // Компонент монтується заново для кожного завдання — одразу ставимо курсор у поле.
@@ -23,12 +19,12 @@ export function ShortAnswer({ value, checked, correct, onChange }: Props) {
       {/* Без inputMode="decimal": на iOS у такій клавіатурі немає мінуса. */}
       <Input
         ref={ref}
-        value={value}
+        value={draft.value}
         disabled={checked}
         autoComplete="off"
         aria-label="Відповідь"
         placeholder="Відповідь — число"
-        onChange={(event) => onChange(event.target.value)}
+        onChange={(event) => onAnswer(input(event.target.value))}
         className={cn(
           "h-11 max-w-60 text-lg md:text-lg",
           checked &&

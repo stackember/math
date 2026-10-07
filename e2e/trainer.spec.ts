@@ -1,8 +1,9 @@
 import { expect, test, type Page } from "@playwright/test"
 
-import { PRACTICE_URLS, practiceQuestions, type PracticeQuestion } from "./content"
+import { answerer, card, option, shortInput } from "./answers"
+import { PRACTICE_URLS, practiceQuestions, REFERENCE_PRACTICE_URLS } from "./content"
 
-/** Еталонний тренажер для перевірки клавіатури, повторення помилок і короткої відповіді. */
+/** Еталонний тренажер для перевірки клавіатури, повторення помилок і окремих типів. */
 const REFERENCE = "/numbers/number-sets/practice"
 
 /** Збирає помилки сторінки: гідрація, дві копії React тощо мають валити тест. */
@@ -15,18 +16,10 @@ function collectErrors(page: Page) {
   return errors
 }
 
-/** Усі локатори — в межах картки тренажера, щоб елементи поза нею (меню, футер) не заважали. */
-const card = (page: Page) => page.locator("[data-slot=card]")
 /** Заголовок пояснення: «Правильно» або «Неправильно. Відповідь: …». */
 const verdict = (page: Page) => card(page).locator("[data-slot=alert-title]")
-const shortInput = (page: Page) => card(page).getByRole("textbox", { name: "Відповідь" })
 const button = (page: Page, name: string | RegExp) =>
   card(page).getByRole("button", { name, exact: typeof name === "string" })
-/** Варіант за індексом із frontmatter (`data-option`), у відповідності — ще й рядок (`data-row`). */
-const option = (page: Page, index: number, row?: number) =>
-  card(page).locator(
-    row === undefined ? `[data-option="${index}"]` : `[data-row="${row}"] [data-option="${index}"]`
-  )
 
 /**
  * Відкриває тренажер і повертає кількість завдань.
@@ -41,45 +34,41 @@ async function openTrainer(page: Page, url: string) {
 }
 
 /** Поточне завдання: `data-question` картки — індекс у frontmatter. */
-async function currentQuestion(page: Page, questions: PracticeQuestion[]) {
+async function currentQuestion(page: Page, url: string) {
   const id = await card(page).getAttribute("data-question")
-  const question = questions[Number(id)]
+  const question = practiceQuestions(url)[Number(id)]
   if (!question) throw new Error(`невідоме завдання ${id}`)
   return question
 }
 
-/** Правильна відповідь із frontmatter. */
-async function answerCorrectly(page: Page, question: PracticeQuestion) {
-  if (question.type === "choice") await option(page, question.answer).click()
-  else if (question.type === "match") {
-    for (const [row, column] of question.answer.entries()) await option(page, column, row).click()
-  } else await shortInput(page).fill(String(question.answer))
+/** Доходить до першого завдання заданого типу, відповідаючи правильно на попередні. */
+async function reachType(page: Page, url: string, type: string) {
+  const total = await openTrainer(page, url)
+  for (let i = 1; i <= total; i++) {
+    const question = await currentQuestion(page, url)
+    if (question.type === type) return question
+    await answerer(question).correct(page, question)
+    await button(page, "Перевірити").click()
+    await button(page, /^Далі/).click()
+  }
+  throw new Error(`у ${url} немає завдання типу ${type}`)
 }
 
-/** Свідомо неправильна: сусідній варіант, зсунуті пари (відповіді різні, тож усі рядки хибні), інше число. */
-async function answerWrongly(page: Page, question: PracticeQuestion) {
-  if (question.type === "choice") await option(page, (question.answer + 1) % 5).click()
-  else if (question.type === "match") {
-    const { answer } = question
-    for (const [row] of answer.entries())
-      await option(page, answer[(row + 1) % answer.length], row).click()
-  } else await shortInput(page).fill(String(question.answer + 1))
-}
+// нова практика потрапляє в повне проходження автоматично: локально — еталонні, у CI — усі
+const FULL_RUN = process.env.CI ? PRACTICE_URLS : REFERENCE_PRACTICE_URLS
 
-// нова практика потрапляє в повне проходження автоматично
-for (const url of PRACTICE_URLS) {
-  const questions = practiceQuestions(url)
-
+for (const url of FULL_RUN) {
   test(`${url}: правильні відповіді на всі завдання, результат і збережений рекорд`, async ({
     page,
   }) => {
     const errors = collectErrors(page)
     const total = await openTrainer(page, url)
-    expect(total).toBe(questions.length)
+    expect(total).toBe(practiceQuestions(url).length)
 
     for (let i = 1; i <= total; i++) {
       await expect(card(page)).toContainText(`Завдання ${i} / ${total}`)
-      await answerCorrectly(page, await currentQuestion(page, questions))
+      const question = await currentQuestion(page, url)
+      await answerer(question).correct(page, question)
       await button(page, "Перевірити").click()
       await expect(verdict(page)).toHaveText("Правильно")
       await button(page, i === total ? "Результат" : /^Далі/).click()
@@ -100,13 +89,12 @@ for (const url of PRACTICE_URLS) {
 }
 
 test("повторення помилок: лише неправильні завдання, рекорд не змінюється", async ({ page }) => {
-  const questions = practiceQuestions(REFERENCE)
   const total = await openTrainer(page, REFERENCE)
 
   for (let i = 1; i <= total; i++) {
     await expect(card(page)).toContainText(`Завдання ${i} / ${total}`)
-    const question = await currentQuestion(page, questions)
-    await (i === 1 ? answerWrongly : answerCorrectly)(page, question)
+    const question = await currentQuestion(page, REFERENCE)
+    await (i === 1 ? answerer(question).wrong : answerer(question).correct)(page, question)
     await button(page, "Перевірити").click()
     await expect(verdict(page)).toContainText(i === 1 ? "Неправильно" : "Правильно")
     await button(page, i === total ? "Результат" : /^Далі/).click()
@@ -115,7 +103,8 @@ test("повторення помилок: лише неправильні за�
 
   await button(page, "Повторити помилки (1)").click()
   await expect(card(page)).toContainText("Повторення помилок 1 / 1")
-  await answerCorrectly(page, await currentQuestion(page, questions))
+  const question = await currentQuestion(page, REFERENCE)
+  await answerer(question).correct(page, question)
   await button(page, "Перевірити").click()
   await expect(verdict(page)).toHaveText("Правильно")
   await button(page, "Результат").click()
@@ -141,20 +130,43 @@ test("клавіатура: цифра обирає варіант, Enter пер
 })
 
 test("нечислова коротка відповідь — підказка, а не помилка", async ({ page }) => {
-  const questions = practiceQuestions(REFERENCE)
-  const total = await openTrainer(page, REFERENCE)
-
-  for (let i = 1; i <= total; i++) {
-    await expect(card(page)).toContainText(`Завдання ${i} / ${total}`)
-    const question = await currentQuestion(page, questions)
-    if (question.type === "short") break
-    await answerCorrectly(page, question)
-    await button(page, "Перевірити").click()
-    await button(page, /^Далі/).click()
-  }
-
+  await reachType(page, REFERENCE, "short")
   await shortInput(page).fill("abc")
   await shortInput(page).press("Enter")
   await expect(card(page).locator("[data-slot=alert]")).toContainText("Введи число")
   await expect(button(page, "Перевірити")).toBeVisible()
+})
+
+test("кілька правильних: перемикання варіантів, цифра, позначки після перевірки", async ({
+  page,
+}) => {
+  const question = await reachType(page, REFERENCE, "multi")
+  if (question.type !== "multi") throw new Error("очікувалось завдання multi")
+  const [first, second] = question.answer
+  const wrongIndex = question.options.findIndex((_, i) => !question.answer.includes(i))
+
+  // клік вмикає, повторний — вимикає
+  await option(page, first).click()
+  await expect(option(page, first)).toHaveAttribute("aria-checked", "true")
+  await option(page, first).click()
+  await expect(option(page, first)).toHaveAttribute("aria-checked", "false")
+  await expect(button(page, "Перевірити")).toBeDisabled()
+
+  // цифра перемикає показану позицію: перший показаний варіант
+  await page.keyboard.press("1")
+  await expect(card(page).getByRole("checkbox").first()).toHaveAttribute("aria-checked", "true")
+  await page.keyboard.press("1")
+  await expect(card(page).getByRole("checkbox").first()).toHaveAttribute("aria-checked", "false")
+
+  // одна правильна + одна зайва: після перевірки — correct, missed, wrong
+  await option(page, first).click()
+  await option(page, wrongIndex).click()
+  await button(page, "Перевірити").click()
+  await expect(verdict(page)).toContainText("Неправильно")
+  await expect(option(page, first)).toHaveAttribute("data-mark", "correct")
+  await expect(option(page, second)).toHaveAttribute("data-mark", "missed")
+  await expect(option(page, wrongIndex)).toHaveAttribute("data-mark", "wrong")
+  // після перевірки варіанти лише для читання
+  await option(page, second).click()
+  await expect(option(page, second)).toHaveAttribute("aria-checked", "false")
 })

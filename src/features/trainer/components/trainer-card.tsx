@@ -11,7 +11,6 @@ import { useProgress } from "../hooks/use-progress"
 import { useStepFocus } from "../hooks/use-step-focus"
 import { useTrainerKeyboard } from "../hooks/use-trainer-keyboard"
 import { useTrainerSession } from "../hooks/use-trainer-session"
-import { select } from "../model/question/choice"
 import { moduleOf, updateDraft } from "../model/question/registry"
 import type { RenderedTrainer } from "../model/schema"
 import { isLastStep } from "../model/session"
@@ -40,10 +39,12 @@ export function TrainerCard({ trainer, trainerId }: Props) {
   useTrainerKeyboard(cardRef, {
     enabled: !t.finished,
     onEnter: () => (t.checked ? t.next() : t.check()),
+    // цифра означає те, що визначив модуль типу завдання (обрати, перемкнути); типи без цифр її ігнорують
     onDigit: (digit) => {
-      if (t.step?.question.type !== "choice" || t.checked) return
-      const option = t.step.order[digit - 1]
-      if (option !== undefined) t.answer(updateDraft("choice", select(option)))
+      if (!t.step || t.checked) return
+      const { question, order } = t.step
+      const update = moduleOf(question).digit?.(question, order, digit)
+      if (update) t.answer(updateDraft(question.type, update))
     },
   })
 

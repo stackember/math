@@ -1,6 +1,9 @@
+import type { ReactNode } from "react"
+
 import { cn } from "@/shared/lib/utils"
 
 import { EXAM } from "../model/exam"
+import type { Draft, Question, RenderedQuestion } from "../model/question/registry"
 
 /** Літери варіантів і рівні складності — з профілю іспиту. */
 export const LETTERS = EXAM.letters
@@ -8,6 +11,25 @@ export const LEVELS = EXAM.levels
 
 /** Стан варіанта/клітинки після вибору та перевірки. */
 export type Mark = "idle" | "selected" | "correct" | "missed" | "wrong"
+
+/**
+ * Пропси поля відповіді — однакові для всіх типів; `T` звужує завдання й чернетку до типу.
+ * `onAnswer` приймає точкове оновлення чернетки свого типу; обгортання в `updateDraft`
+ * робить `answer-field.tsx`, компоненти про reducer не знають.
+ */
+export interface AnswerProps<T extends Question["type"] = Question["type"]> {
+  question: Extract<RenderedQuestion, { type: T }>
+  draft: Extract<Draft, { type: T }>
+  /** Порядок показу варіантів (індекси); порожній, якщо тип не перемішує. */
+  order: number[]
+  checked: boolean
+  correct: boolean
+  onAnswer: (update: (draft: Extract<Draft, { type: T }>) => Extract<Draft, { type: T }>) => void
+}
+
+export type AnswerComponent<T extends Question["type"] = Question["type"]> = (
+  props: AnswerProps<T>
+) => ReactNode
 
 /** Класи для блокового HTML (абзаци, виносні формули, таблиці, списки) поза prose. */
 const BLOCK =

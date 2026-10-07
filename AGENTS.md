@@ -26,8 +26,8 @@
 
 - `npm run dev` — сайт на http://localhost:3000.
 - `npm run check` — швидка перевірка (секунди): контент (`check:content`) + typecheck + lint + юніт-тести. **Запускати після кожної правки**; hook робить `check:content` для зміненого файлу сам.
-- `npm run verify` — `check` + knip + format:check + build + test:e2e. **Запускати перед завершенням роботи.**
-- `npm run rules` — склад тренажера з профілю іспиту (його вставляє skill `/practice`).
+- `npm run verify` — `check` + knip + format:check + build + test:e2e. **Запускати перед завершенням роботи.** Повне e2e-проходження всіх практик — лише в CI; локально — еталонний набір, а кожну практику проганяє Vitest (`practices.test.ts`).
+- `npm run rules` — склад тренажера, типи завдань і приклад кожного (з профілю іспиту й реєстру; його вставляє skill `/practice`).
 - Окремо: `typecheck`, `lint` (разом із межами архітектури й іменами файлів), `knip` (мертві експорти, файли, залежності), `format`, `test` (Vitest), `build`, `test:e2e` (Playwright, потребує свіжого `build`; сервер на порту 3100).
 
 ## Структура
@@ -48,20 +48,21 @@ src/                              три рівні: app → features → shared
       model/                      source (loader), frontmatter (схеми за іменем файлу + рендер тренажера), topic, page-tree
       components/                 topic-switch, mdx-components (реєстр компонентів для MDX)
     trainer/                      тренажер — без Next і Fumadocs
-      model/                      exam (профіль іспиту), question/ (реєстр типів завдань: base, choice, match, short, registry),
-                                  schema (+ lint — евристики якості), session, order, number, progress (сховище прогресу),
+      model/                      exam (профіль іспиту), question/ (реєстр типів завдань: base — контракт, choice, match,
+                                  multi, short, registry — єдиний список), schema (+ lint — евристики якості), session, order,
+                                  number, progress (сховище прогресу),
                                   verdict, answer-text, render (лише для збирання: Markdown+KaTeX → HTML, рисунки)
       hooks/                      use-trainer-session, use-progress, use-trainer-keyboard, use-step-focus, use-mounted
-      components/                 trainer (вхід для сторінки), trainer-card, answer-field (поле за типом завдання),
-                                  choice-answer, match-answer, short-answer, feedback, results, shared
+      components/                 trainer (вхід для сторінки), trainer-card, answer-field + answer-registry (поле за типом),
+                                  choice-answer, match-answer, multi-answer, short-answer, option-row, feedback, results, shared
     diagram/                      схеми для теорії, усі в одних сегментах: model/number-sets, hooks/use-delayed-clear,
                                   components/number-sets (сервер, KaTeX) + number-sets-diagram (клієнт)
   shared/                         рівень 3, спільне без домену; про features не знає
     ui/                           shadcn — лише через `npx shadcn@latest add <name>`, руками не правити
     lib/                          markdown (Markdown+KaTeX → HTML, спільний конвеєр), math (KaTeX), latex-text (пошук), i18n, utils
     test/                         налаштування Vitest
-e2e/                              Playwright-тести; e2e/content.ts знаходить усі сторінки й практики
-scripts/                          check-content (перевірка контенту без Next), print-rules (склад для skill), hooks/after-edit
+e2e/                              Playwright-тести; e2e/content.ts знаходить усі сторінки й практики, e2e/answers.ts — відповідачі за типом
+scripts/                          check-content (перевірка контенту без Next), print-rules (склад і типи для skill), hooks/after-edit
 .claude/                          rules/ (правила за шляхами), skills/ (theory, practice, review-topic), agents/math-checker, settings.json
 ```
 
@@ -79,12 +80,12 @@ scripts/                          check-content (перевірка контен
 
 1. Залежності лише вниз: `app` → `features` → `shared`. `shared` ніколи не імпортує з `features` чи `app`. Усередині можливості: `components` → `hooks` → `model`.
 2. Між можливостями імпортів немає, крім двох: `content/model` → `trainer/model` (схема frontmatter перевіряє тренажер) і `content/components` → `components` будь-якої можливості (реєстр MDX).
-3. `next/*` і `fumadocs-*` знають лише `app` і `content`. У `model/` немає `react`.
+3. `next/*` і `fumadocs-*` знають лише `app` і `content` (`shared/lib` — лише типи, для підписів i18n). У `model/` немає `react`.
 4. `model/render.ts` — лише для збирання: його імпортує тільки `content/model/frontmatter.ts`. Модулі Node (`node:fs`, `node:path`) — лише в `content/model`.
 5. Файл у `src/` поза `app/`, `features/<можливість>/<сегмент>/` чи `shared/{ui,lib,test}/` — помилка `no-unknown-files`. Потрібне нове правило — міняй конфіг, не обходь.
 6. Файли — kebab-case (перевіряє лінт); компонент експортується PascalCase (`trainer-card.tsx` → `TrainerCard`). Barrel-файлів `index.ts` немає — імпорти прямі.
 7. `knip` у `verify`: мертві експорти, файли й залежності — помилка. Не експортуй «про запас».
-8. `scripts/` (перевірка контенту, hooks) імпортує лише `model` і `lib` — без React і Next.
+8. `scripts/` (перевірка контенту, hooks) імпортує лише `model` і `lib` — без React і Next. `e2e/` з `src` бере лише типи (`import type`): тести не виконують код сайту.
 
 ## Як додати
 
@@ -93,7 +94,7 @@ scripts/                          check-content (перевірка контен
 - **Практику:** тільки skill `/practice <slug>`. Файл `practice.mdx` поруч з `index.mdx` — лише frontmatter, без тексту (практика це тільки тренажер, правила — в теорії; текст у тілі зупиняє збирання); тренажер, пункт меню «Практика», кнопки переходу й тести з'являються самі.
 - **Схему для теорії:** папка `src/features/diagram/` за сегментами + реєстрація в `src/features/content/components/mdx-components.tsx` + e2e-тест (див. «Схеми й ілюстрації»).
 - **Компонент shadcn:** `npx shadcn@latest add <name>`.
-- **Тип завдання тренажера:** див. `.claude/rules/trainer.md`.
+- **Тип завдання тренажера:** модуль у `question/` + компонент + рядок у трьох реєстрах (модель, компоненти, e2e-відповідачі) — покроково в `.claude/rules/trainer.md`.
 - **Ревʼю теми без змін:** skill `/review-topic <slug>`.
 
 ## Архітектурні рішення
@@ -105,7 +106,7 @@ scripts/                          check-content (перевірка контен
   - склад і оформлення тренажера — схема в `src/features/trainer/model/schema.ts` і `question/*.ts` (Zod з українськими повідомленнями: `z.locales.uk()`, `strictObject` — незнайоме поле це помилка);
   - зламана формула в MDX чи в тексті тренажера — `rehypeKatexStrict` (сам `rehype-katex` лише малює червоний текст і збирання не зупиняє);
   - варіант, пункт відповідності чи назва правила не в один рядок — `md.inline`; рисунок, якого немає, — `frontmatter.ts`;
-  - евристики якості завдань (варіант «усі перелічені» без `keepOrder`) — список правил у `src/features/trainer/model/lint.ts`.
+  - евристики якості завдань — загальні в `src/features/trainer/model/lint.ts`, залежні від типу — метод `lint` модуля (`error` зупиняє збирання, `warn` показує лише `npm run check`).
 - **Пошук** — вбудований Orama Fumadocs (`/api/search`), багатомовний. Формули в індексі — текстом через `latexToText`. Тексти завдань з frontmatter не індексуються.
 - **Помилка під час показу сторінки** — `src/app/error.tsx` (меню лишається), а не порожній екран.
 - Підписи інтерфейсу Fumadocs — у `src/shared/lib/i18n.ts`; новий рядок інтерфейсу без перекладу — додати туди.

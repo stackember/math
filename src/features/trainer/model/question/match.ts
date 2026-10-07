@@ -6,7 +6,7 @@ import { common, text, type QuestionModule } from "./base"
 const unique = (items: readonly unknown[]) => new Set(items).size === items.length
 
 /** Відповідність: кожному пункту 1–3 — один варіант А–Д. */
-export const schema = z
+const schema = z
   .strictObject({
     type: z.literal("match"),
     ...common,
@@ -34,15 +34,33 @@ export const schema = z
     if (!unique(question.answer)) issue("answer", "відповіді у відповідності мають бути різними")
   })
 
-export type MatchQuestion = z.infer<typeof schema>
-
 export interface MatchDraft {
   type: "match"
   /** `match[row]` — обрана колонка (індекс у `right`) або `null`. */
   match: (number | null)[]
 }
 
-export const match: QuestionModule<MatchQuestion, MatchDraft> = {
+/** Обрати варіант для рядка. */
+export const pick = (row: number, column: number) => (draft: MatchDraft) => ({
+  ...draft,
+  match: draft.match.map((cell, i) => (i === row ? column : cell)),
+})
+
+export const match = {
+  type: "match",
+  schema,
+  meta: {
+    label: "відповідність",
+    answerHint: `${EXAM.matchLeft} пункти (1–${EXAM.matchLeft}) і ${EXAM.matchRight} варіантів (${EXAM.letters[0]}–${EXAM.letters.at(-1)}), сітка як у бланку НМТ: у кожному рядку обрати одну клітинку`,
+    example: `- type: match
+  level: 2
+  tag: classify
+  q: Установіть відповідність між числом (1–3) та **найменшою** множиною (А–Д), якій воно належить.
+  left: ['$\\sqrt{49}$', '$-\\frac{18}{6}$', '$0{,}(4)$'] # рівно ${EXAM.matchLeft}
+  right: ['$\\N$ — натуральні', '$\\Z$ — цілі', '$\\Q$ — раціональні', '$\\I$ — ірраціональні', '$\\R$ — дійсні'] # рівно ${EXAM.matchRight}, не перемішуються
+  answer: [0, 1, 2] # answer[i] — індекс у right для left[i]; усі різні
+  why: '$\\sqrt{49} = 7 \\in \\N$; $-\\frac{18}{6} = -3 \\in \\Z$; $0{,}(4) = \\frac49 \\in \\Q$.'`,
+  },
   async render(question, md) {
     const all = (items: string[]) => Promise.all(items.map((item) => md.inline(item)))
     return { ...question, left: await all(question.left), right: await all(question.right) }
@@ -55,10 +73,10 @@ export const match: QuestionModule<MatchQuestion, MatchDraft> = {
     question.answer.every((column, row) => draft.match[row] === column),
   answerHtml: (question) =>
     question.answer.map((column, row) => `${row + 1}–${EXAM.letters[column]}`).join(", "),
-}
-
-/** Обрати варіант для рядка. */
-export const pick = (row: number, column: number) => (draft: MatchDraft) => ({
-  ...draft,
-  match: draft.match.map((cell, i) => (i === row ? column : cell)),
-})
+  correctDraft: (question) => ({ type: "match", match: [...question.answer] }),
+  // відповіді різні, тож після зсуву на один кожен рядок хибний
+  wrongDraft: (question) => ({
+    type: "match",
+    match: question.answer.map((_, row) => question.answer[(row + 1) % question.answer.length]),
+  }),
+} satisfies QuestionModule<typeof schema, MatchDraft>

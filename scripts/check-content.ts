@@ -18,10 +18,12 @@ import remarkParse from "remark-parse"
 import remarkRehype from "remark-rehype"
 import { unified } from "unified"
 import { VFile } from "vfile"
-import { isMap, LineCounter, parseDocument } from "yaml"
+import { isMap, isNode, isSeq, LineCounter, parseDocument } from "yaml"
 
 import { frontmatterSchema } from "@/features/content/model/frontmatter"
 import { PRACTICE } from "@/features/content/model/topic"
+import { lintQuestion } from "@/features/trainer/model/lint"
+import { questionSchema } from "@/features/trainer/model/question/registry"
 import { katexOptions } from "@/shared/lib/math"
 
 export interface Problem {
@@ -109,6 +111,19 @@ export async function checkMdx(file: string, source: string): Promise<Problem[]>
       const offset = (node as { range?: [number, number] } | null)?.range?.[0]
       const line = offset === undefined ? 2 : lineCounter.linePos(offset).line + 1
       add(`${path.length ? path.join(".") + ": " : ""}${issue.message}`, line)
+    }
+
+    // попередження якості завдань (severity warn): збирання їх не зупиняє, перевірка — показує
+    if (!result.issues) {
+      const questions = doc.getIn(["trainer", "questions"], true)
+      for (const [i, raw] of (isSeq(questions) ? questions.items : []).entries()) {
+        const parsed = questionSchema.safeParse(isNode(raw) ? raw.toJS(doc) : raw)
+        if (!parsed.success) continue
+        const offset = (raw as { range?: [number, number] }).range?.[0]
+        const line = offset === undefined ? 2 : lineCounter.linePos(offset).line + 1
+        for (const warning of lintQuestion(parsed.data, "warn"))
+          add(`завдання ${i + 1}: ${warning}`, line)
+      }
     }
   }
 

@@ -3,6 +3,8 @@ import { sep } from "node:path"
 
 import { parse } from "yaml"
 
+import type { Question } from "@/features/trainer/model/question/registry"
+
 const CONTENT_DIR = new URL("../content/", import.meta.url)
 
 const FILES = readdirSync(CONTENT_DIR, { recursive: true })
@@ -24,23 +26,32 @@ export const NUMBERS_ORDER = (
   }
 ).pages.filter((slug) => slug !== "...")
 
+const frontmatterOf = (file: string) => {
+  const text = readFileSync(new URL(file, CONTENT_DIR), "utf8")
+  const frontmatter = /^---\r?\n([\s\S]*?)\r?\n---/.exec(text)?.[1]
+  if (!frontmatter) throw new Error(`${file}: немає frontmatter`)
+  return parse(frontmatter) as Record<string, unknown>
+}
+
 /** Назва теми з frontmatter її теорії — так вона підписана в меню. */
 export function topicTitle(area: string, slug: string): string {
-  const text = readFileSync(new URL(`${area}/${slug}/index.mdx`, CONTENT_DIR), "utf8")
-  const frontmatter = /^---\r?\n([\s\S]*?)\r?\n---/.exec(text)?.[1]
-  if (!frontmatter) throw new Error(`${area}/${slug}: немає frontmatter`)
-  return (parse(frontmatter) as { title: string }).title
+  return frontmatterOf(`${area}/${slug}/index.mdx`).title as string
 }
 
-export type PracticeQuestion =
-  | { type: "choice"; answer: number }
-  | { type: "match"; answer: number[] }
-  | { type: "short"; answer: number }
-
-/** Завдання практики з її frontmatter (у порядку файлу — це `data-question` картки). */
-export function practiceQuestions(url: string): PracticeQuestion[] {
-  const text = readFileSync(new URL(`${url.slice(1)}.mdx`, CONTENT_DIR), "utf8")
-  const frontmatter = /^---\r?\n([\s\S]*?)\r?\n---/.exec(text)?.[1]
-  if (!frontmatter) throw new Error(`${url}: немає frontmatter`)
-  return (parse(frontmatter) as { trainer: { questions: PracticeQuestion[] } }).trainer.questions
+/**
+ * Завдання практики з її frontmatter (у порядку файлу — це `data-question` картки).
+ * Сирий YAML без значень за замовчуванням, але тип і відповідь — як у схемі.
+ */
+export function practiceQuestions(url: string): Question[] {
+  return (frontmatterOf(`${url.slice(1)}.mdx`).trainer as { questions: Question[] }).questions
 }
+
+/**
+ * Еталонні практики — найменший набір, що разом покриває всі типи завдань.
+ * Локально повне проходження йде лише для них, у CI — для всіх (`PRACTICE_URLS`),
+ * щоб `npm run verify` не ріс із кількістю тем; кожну практику й так проганяє Vitest.
+ */
+export const REFERENCE_PRACTICE_URLS = PRACTICE_URLS.filter((url, i, urls) => {
+  const covered = new Set(urls.slice(0, i).flatMap((u) => practiceQuestions(u).map((q) => q.type)))
+  return practiceQuestions(url).some((q) => !covered.has(q.type))
+})

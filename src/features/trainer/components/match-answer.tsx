@@ -3,18 +3,8 @@ import { Radio } from "@base-ui/react/radio"
 import { cn } from "@/shared/lib/utils"
 import { RadioGroup } from "@/shared/ui/radio-group"
 
-import type { RenderedQuestion } from "../model/question/registry"
-import { Html, LETTERS, type Mark } from "./shared"
-
-type MatchQuestion = Extract<RenderedQuestion, { type: "match" }>
-
-interface Props {
-  question: MatchQuestion
-  /** `selected[row]` — обрана колонка (індекс у `right`) або `null`. */
-  selected: (number | null)[]
-  checked: boolean
-  onSelect: (row: number, column: number) => void
-}
+import { pick } from "../model/question/match"
+import { Html, LETTERS, type AnswerProps, type Mark } from "./shared"
 
 const cellStyles: Record<Mark, string> = {
   idle: "border-border bg-background not-data-readonly:hover:border-primary",
@@ -24,8 +14,12 @@ const cellStyles: Record<Mark, string> = {
   wrong: "border-destructive bg-destructive",
 }
 
-function markOf(row: number, column: number, { question, selected, checked }: Props): Mark {
-  const isSelected = selected[row] === column
+function markOf(
+  row: number,
+  column: number,
+  { question, draft, checked }: AnswerProps<"match">
+): Mark {
+  const isSelected = draft.match[row] === column
   if (!checked) return isSelected ? "selected" : "idle"
   const isAnswer = question.answer[row] === column
   if (isAnswer) return isSelected ? "correct" : "missed"
@@ -36,8 +30,8 @@ function markOf(row: number, column: number, { question, selected, checked }: Pr
  * Списки «1–3» і «А–Д» + сітка відповідей, як у бланку НМТ: кожен рядок — своя група радіокнопок.
  * `data-row` / `data-option` — індекси з frontmatter (для e2e).
  */
-export function MatchAnswer(props: Props) {
-  const { question, selected, checked, onSelect } = props
+export function MatchAnswer(props: AnswerProps<"match">) {
+  const { question, draft, checked, onAnswer } = props
   const columns = { gridTemplateColumns: `1.5rem repeat(${question.right.length}, 2.25rem)` }
 
   return (
@@ -79,9 +73,9 @@ export function MatchAnswer(props: Props) {
             data-row={row}
             className="grid w-auto items-center gap-1.5"
             style={columns}
-            value={selected[row] === null ? null : String(selected[row])}
+            value={draft.match[row] === null ? null : String(draft.match[row])}
             readOnly={checked}
-            onValueChange={(value) => onSelect(row, Number(value))}
+            onValueChange={(value) => onAnswer(pick(row, Number(value)))}
           >
             <span className="text-xs font-semibold text-muted-foreground" aria-hidden="true">
               {row + 1}

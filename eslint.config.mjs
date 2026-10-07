@@ -27,6 +27,16 @@ const element = (type, captured) => ({ element: captured ? { type, captured } : 
 const sameFeature = { feature: "{{ from.element.captured.feature }}" }
 const external = (source) => ({ module: { origin: "external", source } })
 const buildFiles = { file: { categories: "build" } }
+const FRAMEWORK = [
+  "next",
+  "next/*",
+  "fumadocs-core",
+  "fumadocs-core/*",
+  "fumadocs-ui",
+  "fumadocs-ui/*",
+  "fumadocs-mdx",
+  "fumadocs-mdx/*",
+]
 
 export default defineConfig([
   ...nextVitals,
@@ -55,7 +65,7 @@ export default defineConfig([
     },
   },
   {
-    files: ["src/**/*.{ts,tsx}"],
+    files: ["src/**/*.{ts,tsx}", "scripts/**/*.{ts,mjs}", "e2e/**/*.ts"],
     plugins: { boundaries },
     settings: {
       "boundaries/elements": [
@@ -64,6 +74,7 @@ export default defineConfig([
         { type: "lib", pattern: "src/shared/lib" },
         { type: "test", pattern: "src/shared/test" },
         { type: "scripts", pattern: "scripts" },
+        { type: "e2e", pattern: "e2e" },
         segment("model"),
         segment("hooks"),
         segment("components"),
@@ -94,21 +105,14 @@ export default defineConfig([
               from: element("model"),
               disallow: { to: external(["react", "react-dom", "next", "next/*"]) },
             },
-            // фреймворк знають лише app і content
+            // фреймворк знають лише app і content (lib — лише типи Fumadocs, для підписів i18n)
             {
-              from: element(["components", "hooks"], { feature: "!content" }),
-              disallow: {
-                to: external([
-                  "next",
-                  "next/*",
-                  "fumadocs-core",
-                  "fumadocs-core/*",
-                  "fumadocs-ui",
-                  "fumadocs-ui/*",
-                  "fumadocs-mdx",
-                  "fumadocs-mdx/*",
-                ]),
-              },
+              from: element(["components", "hooks", "model"], { feature: "!content" }),
+              disallow: { to: external(FRAMEWORK) },
+            },
+            {
+              from: element("lib"),
+              disallow: { to: external(FRAMEWORK), dependency: { kind: "value" } },
             },
 
             { from: element("app"), allow: { to: element(["components", "model", "ui", "lib"]) } },
@@ -118,6 +122,10 @@ export default defineConfig([
             // scripts (перевірка контенту, hooks) — лише чиста логіка model і lib, без React і Next
             { from: element("scripts"), allow: { to: element(["model", "lib", "scripts"]) } },
             { from: element("scripts"), allow: { to: { module: { origin: "core" } } } },
+            // e2e — самодостатні: з src лише типи (контракт завдань), код сайту не виконують
+            { from: element("e2e"), allow: { to: element("e2e") } },
+            { from: element("e2e"), allow: { to: { module: { origin: "core" } } } },
+            { from: element("e2e"), allow: { to: element("model"), dependency: { kind: "type" } } },
 
             {
               from: element("components"),

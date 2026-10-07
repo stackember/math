@@ -10,7 +10,7 @@ const isTypeable = (n: number) =>
   Number.isFinite(n) && Math.abs(n * 1e4 - Math.round(n * 1e4)) < 1e-9
 
 /** Коротка відповідь: число. */
-export const schema = z.strictObject({
+const schema = z.strictObject({
   type: z.literal("short"),
   ...common,
   /** Ціле або скінченний десятковий дріб: 4, -2.5, 0.75. */
@@ -19,14 +19,28 @@ export const schema = z.strictObject({
     .refine(isTypeable, { error: "answer: ціле число або десятковий дріб до 4 знаків після коми" }),
 })
 
-export type ShortQuestion = z.infer<typeof schema>
-
 export interface ShortDraft {
   type: "short"
   value: string
 }
 
-export const short: QuestionModule<ShortQuestion, ShortDraft> = {
+/** Ввести текст відповіді. */
+export const input = (value: string) => (draft: ShortDraft) => ({ ...draft, value })
+
+export const short = {
+  type: "short",
+  schema,
+  meta: {
+    label: "коротка відповідь",
+    answerHint:
+      "поле для числа: ціле або десятковий дріб (кома чи крапка), мінус будь-який, дріб −5/2 теж приймається",
+    example: `- type: short
+  level: 2
+  tag: classify
+  q: 'Скільки **цілих** чисел серед: $-7$; $2{,}5$; $0$; $\\sqrt{25}$?'
+  answer: 3 # число, не рядок: 4, -2.5
+  why: 'Цілі: $-7$, $0$, $\\sqrt{25} = 5$.'`,
+  },
   render: async (question) => question,
   displayOrder: () => [],
   emptyDraft: () => ({ type: "short", value: "" }),
@@ -37,7 +51,7 @@ export const short: QuestionModule<ShortQuestion, ShortDraft> = {
     return value !== null && Math.abs(value - question.answer) < 1e-9
   },
   answerHtml: (question) => formatNumber(question.answer),
-}
-
-/** Ввести текст відповіді. */
-export const input = (value: string) => (draft: ShortDraft) => ({ ...draft, value })
+  // як у підручнику («−2,5») — заодно перевіряє розбір такого запису
+  correctDraft: (question) => ({ type: "short", value: formatNumber(question.answer) }),
+  wrongDraft: (question) => ({ type: "short", value: String(question.answer + 1) }),
+} satisfies QuestionModule<typeof schema, ShortDraft>

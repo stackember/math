@@ -73,10 +73,23 @@ describe("trainerSchema", () => {
     expect(messages(trainer).some((m) => m.startsWith("завдання 1: «усі перелічені»"))).toBe(true)
   })
 
-  it("ловить порушення складу", () => {
+  it("ловить порушення складу за кожним типом з профілю іспиту", () => {
     const trainer = validTrainer()
     trainer.questions = trainer.questions.filter((q) => q.type !== "match")
     expect(messages(trainer)).toContain("тип match: потрібно 1–2, зараз 0")
+
+    const multi = (n: number) => ({
+      type: "multi",
+      level: 2,
+      tag: "a",
+      q: `Які з чисел ${n}?`,
+      options: ["1", "2", "3"],
+      answer: [0, 1],
+      why: "Пояснення",
+    })
+    const tooMany = validTrainer()
+    tooMany.questions = [...tooMany.questions, multi(1), multi(2), multi(3)] as never
+    expect(messages(tooMany)).toContain("тип multi: потрібно 0–2, зараз 3")
   })
 
   it("пояснює форму кожного типу українською", () => {

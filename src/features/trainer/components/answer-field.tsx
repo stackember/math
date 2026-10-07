@@ -1,11 +1,7 @@
-import { select } from "../model/question/choice"
-import { pick } from "../model/question/match"
 import { updateDraft, type Draft } from "../model/question/registry"
-import { input } from "../model/question/short"
 import type { Step } from "../model/session"
-import { ChoiceAnswer } from "./choice-answer"
-import { MatchAnswer } from "./match-answer"
-import { ShortAnswer } from "./short-answer"
+import { ANSWER_COMPONENTS } from "./answer-registry"
+import type { AnswerComponent } from "./shared"
 
 interface Props {
   step: Step
@@ -16,41 +12,22 @@ interface Props {
 }
 
 /**
- * Поле відповіді за типом завдання — єдине місце в інтерфейсі, де тип розгалужується.
- * Новий тип завдання: компонент поруч + гілка тут (TypeScript вимагатиме її через `never`).
+ * Поле відповіді за типом завдання: компонент — з реєстру `answer-registry.tsx`.
+ * Єдине місце в інтерфейсі, де конкретний тип стирається до спільних пропсів
+ * (дзеркально до `moduleOf` у моделі); чернетка чужого типу не показується.
  */
 export function AnswerField({ step, draft, checked, correct, onAnswer }: Props) {
-  const { question } = step
-  switch (question.type) {
-    case "choice":
-      return draft.type === "choice" ? (
-        <ChoiceAnswer
-          question={question}
-          order={step.order}
-          selected={draft.choice}
-          checked={checked}
-          onSelect={(option) => onAnswer(updateDraft("choice", select(option)))}
-        />
-      ) : null
-    case "match":
-      return draft.type === "match" ? (
-        <MatchAnswer
-          question={question}
-          selected={draft.match}
-          checked={checked}
-          onSelect={(row, column) => onAnswer(updateDraft("match", pick(row, column)))}
-        />
-      ) : null
-    case "short":
-      return draft.type === "short" ? (
-        <ShortAnswer
-          value={draft.value}
-          checked={checked}
-          correct={correct}
-          onChange={(value) => onAnswer(updateDraft("short", input(value)))}
-        />
-      ) : null
-    default:
-      return question satisfies never
-  }
+  const { question, order } = step
+  if (draft.type !== question.type) return null
+  const Answer = ANSWER_COMPONENTS[question.type] as AnswerComponent
+  return (
+    <Answer
+      question={question}
+      draft={draft}
+      order={order}
+      checked={checked}
+      correct={correct}
+      onAnswer={(update) => onAnswer(updateDraft(question.type, update))}
+    />
+  )
 }

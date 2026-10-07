@@ -2,19 +2,22 @@ import { z } from "zod"
 
 import { EXAM } from "./exam"
 import { lintQuestion } from "./lint"
-import { questionSchema, type RenderedQuestion } from "./question/registry"
+import { questionSchema, type Question, type RenderedQuestion } from "./question/registry"
 
 // Повідомлення Zod — українською; власний текст лише там, де стандартний незрозумілий
 z.config(z.locales.uk())
 
+type Range = readonly [number, number]
+
 /**
  * Правила складу тренажера — з профілю іспиту (exam.ts). Перевіряються під час збирання сайту
  * (`npm run build`, а в `npm run dev` — одразу при збереженні) — порушення зупиняє збирання з поясненням.
+ * Ліміти за типом — лише для типів з реєстру (`satisfies` не дасть описати неіснуючий).
  */
 const RULES = {
   total: EXAM.composition.total,
   levels: EXAM.composition.levels,
-  types: EXAM.composition.types,
+  types: EXAM.composition.types satisfies Partial<Record<Question["type"], Range>>,
 } as const
 
 const TAG_ID = /^[a-z][a-z0-9-]*$/
@@ -61,7 +64,7 @@ export const trainerSchema = z
       if (!usedTags.has(tag)) issue(`тег «${tag}» не покритий жодним завданням`, ["tags", tag])
     }
 
-    const inRange = (what: string, value: number, [min, max]: readonly [number, number]) => {
+    const inRange = (what: string, value: number, [min, max]: Range) => {
       if (value < min || value > max)
         issue(`${what}: потрібно ${min}–${max}, зараз ${value}`, ["questions"])
     }
@@ -76,16 +79,13 @@ export const trainerSchema = z
         RULES.levels[level]
       )
     }
-    inRange(
-      "тип match",
-      count((q) => q.type === "match"),
-      RULES.types.match
-    )
-    inRange(
-      "тип short",
-      count((q) => q.type === "short"),
-      RULES.types.short
-    )
+    for (const [type, range] of Object.entries(RULES.types)) {
+      inRange(
+        `тип ${type}`,
+        count((q) => q.type === type),
+        range
+      )
+    }
   })
 
 export type TrainerData = z.infer<typeof trainerSchema>
