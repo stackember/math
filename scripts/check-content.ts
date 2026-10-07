@@ -21,7 +21,7 @@ import { VFile } from "vfile"
 import { isMap, isNode, isSeq, LineCounter, parseDocument } from "yaml"
 
 import { frontmatterSchema } from "@/features/content/model/frontmatter"
-import { PRACTICE } from "@/features/content/model/topic"
+import { CONTENT_DIR, isStrayPage, theoryFile, topicPage } from "@/features/content/model/topic"
 import { lintQuestion } from "@/features/trainer/model/lint"
 import { questionSchema } from "@/features/trainer/model/question/registry"
 import { katexOptions } from "@/shared/lib/math"
@@ -33,7 +33,10 @@ export interface Problem {
   message: string
 }
 
-const CONTENT = "content"
+const CONTENT = CONTENT_DIR
+
+/** Шлях файлу (від кореня проєкту чи абсолютний) → відносно content/, як того хоче topic.ts. */
+const inContent = (file: string) => relative(resolve(CONTENT), resolve(file))
 
 /** Розділи теорії в порядку формату; «Простими словами» — за потреби. */
 const THEORY_SECTIONS = ["Коротко", "Простими словами", "Приклади", "Пастки"] as const
@@ -149,8 +152,7 @@ export async function checkMdx(file: string, source: string): Promise<Problem[]>
     add(`Помилка у формулі: ${detail}`, (m.line ?? 1) + parts.bodyLine - 1, m.column ?? undefined)
   }
 
-  const isTheory = /(^|[\\/])index\.mdx$/.test(file) && file.split(/[\\/]/).length === 4
-  if (isTheory) {
+  if (topicPage(inContent(file))?.kind === "theory") {
     const headings = tree.children.filter(
       (n): n is Heading => n.type === "heading" && n.depth === 2
     )
@@ -209,21 +211,18 @@ export async function checkStructure(root = CONTENT): Promise<Problem[]> {
 
   const topics = new Map<string, string[]>()
   for (const file of files) {
-    const parts = file.split("/")
-    if (parts.length === 3 && parts[2] === "index.mdx") {
-      topics.set(parts[1], [...(topics.get(parts[1]) ?? []), `${root}/${file}`])
+    const page = topicPage(file)
+    if (page?.kind === "theory") {
+      const { slug } = page.topic
+      topics.set(slug, [...(topics.get(slug) ?? []), `${root}/${file}`])
     }
-    if (
-      parts.length === 3 &&
-      parts[2] === `${PRACTICE}.mdx` &&
-      !files.has(`${parts[0]}/${parts[1]}/index.mdx`)
-    ) {
+    if (page?.kind === "practice" && !files.has(theoryFile(page.topic))) {
       problems.push({
         file: `${root}/${file}`,
         message: "практика без теорії: поруч має бути index.mdx теми",
       })
     }
-    if (parts.length === 2 && /\.mdx?$/.test(parts[1])) {
+    if (isStrayPage(file)) {
       problems.push({
         file: `${root}/${file}`,
         message: "сторінка просто в розділі: тема — це папка content/<розділ>/<тема>/index.mdx",

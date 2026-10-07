@@ -1,11 +1,11 @@
 import type { TagStat } from "./session"
 
 /**
- * Збережений прогрес теми. Сховище — за інтерфейсом `ProgressStore`:
+ * Збережений прогрес тренажера. Сховище — за інтерфейсом `ProgressStore`:
  * зараз це localStorage браузера, у тестах — пам'ять; формат має `version`,
  * щоб старі записи читалися після зміни формату (див. `migrate`).
  */
-interface Score {
+export interface Score {
   score: number
   total: number
 }
@@ -16,10 +16,17 @@ export interface TrainerResult extends Score {
   tags: Record<string, TagStat>
 }
 
+/** Один повний прохід з часом (мс від епохи). */
+interface Attempt extends TrainerResult {
+  at: number
+}
+
 export interface Progress {
-  version: 2
+  version: 3
   best?: Score
   last?: Score
+  /** Останні проходи, найновіший — останній; не більше `ATTEMPTS_KEPT`. */
+  attempts: Attempt[]
   /** Накопичено за всі проходи: правильно/усього за кожним правилом теми. */
   tags: Record<string, TagStat>
 }
@@ -30,22 +37,30 @@ export interface ProgressStore {
   save(trainerId: string, result: TrainerResult): Progress
 }
 
-export const EMPTY_PROGRESS: Progress = { version: 2, tags: {} }
+/** Скільки останніх проходів зберігати — вистачає для сторінки прогресу, не роздуває сховище. */
+export const ATTEMPTS_KEPT = 20
+
+export const EMPTY_PROGRESS: Progress = { version: 3, attempts: [], tags: {} }
 
 /** Ключ результатів тренажера: `trainer:<slug теми>` — не залежить від адреси сторінки. */
 const key = (trainerId: string) => `trainer:${trainerId}`
 /** Ключ до переїзду сторінок (content/practice/<slug>): читається, якщо за новим ще нічого немає. */
 const legacyKey = (trainerId: string) => `trainer:practice/${trainerId}`
 
-/** Версія 1 (без поля `version`): лише best і last. */
-type StoredV1 = Pick<Progress, "best" | "last">
+/** Версія 1 (без поля `version`): лише best і last. Версія 2: ще `tags`, без історії проходів. */
+type Stored = Partial<Progress> & { version?: 2 | 3 }
 
 /** Запис будь-якої версії → поточний формат. Зіпсований запис — як порожній. */
 function migrate(raw: unknown): Progress {
   if (!raw || typeof raw !== "object") return EMPTY_PROGRESS
-  const stored = raw as Partial<Progress> | StoredV1
-  if ("version" in stored && stored.version === 2) return { ...EMPTY_PROGRESS, ...stored }
-  return { ...EMPTY_PROGRESS, best: stored.best, last: stored.last }
+  const stored = raw as Stored
+  return {
+    ...EMPTY_PROGRESS,
+    best: stored.best,
+    last: stored.last,
+    tags: stored.tags ?? {},
+    attempts: stored.version === 3 && Array.isArray(stored.attempts) ? stored.attempts : [],
+  }
 }
 
 const ratio = ({ score, total }: Score) => score / total
@@ -56,8 +71,12 @@ export type KeyValueStorage = Pick<Storage, "getItem" | "setItem">
 /**
  * `storage` — функція, бо localStorage береться лише в момент виклику: на сервері його немає,
  * а в приватному режимі сам доступ може кинути помилку — тоді просто нічого не зберігаємо.
+ * `now` — час проходу; у тестах підставний.
  */
-export function createProgressStore(storage: () => KeyValueStorage): ProgressStore {
+export function createProgressStore(
+  storage: () => KeyValueStorage,
+  now: () => number = Date.now
+): ProgressStore {
   const read = (k: string): unknown => {
     try {
       const raw = storage().getItem(k)
@@ -80,9 +99,10 @@ export function createProgressStore(storage: () => KeyValueStorage): ProgressSto
         tags[tag] = { correct: before.correct + stat.correct, total: before.total + stat.total }
       }
       const next: Progress = {
-        version: 2,
+        version: 3,
         best: current.best && ratio(current.best) >= ratio(score) ? current.best : score,
         last: score,
+        attempts: [...current.attempts, { ...result, at: now() }].slice(-ATTEMPTS_KEPT),
         tags,
       }
       try {

@@ -12,6 +12,7 @@ import { pageTreePlugin } from "./page-tree"
  * Глобальні MDX-плагіни (формули) — у source.config.ts.
  */
 const content = defineDocs({
+  // лише літерал: макрос fumadocs-mdx читає його під час збирання; те саме значення — CONTENT_DIR у topic.ts
   dir: "content",
   docs: {
     schema: frontmatterSchema,

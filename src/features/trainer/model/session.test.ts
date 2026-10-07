@@ -55,7 +55,7 @@ const choose = (option: number): Action => ({
 })
 const type = (value: string): Action => ({
   type: "answer",
-  update: updateDraft("short", input(value)),
+  update: updateDraft("short", input(0, value)),
 })
 
 describe("session", () => {
@@ -102,7 +102,7 @@ describe("session", () => {
   it("оновлення чужого типу не чіпає чернетку", () => {
     let s = createSession([short], "full")
     s = run(s, choose(2))
-    expect(s.draft).toEqual({ type: "short", value: "" })
+    expect(s.draft).toEqual({ type: "short", values: [""] })
   })
 
   it("не зараховує нечислову коротку відповідь, а просить ввести число", () => {

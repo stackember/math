@@ -42,19 +42,22 @@ content/                          контент (MDX): одна папка — 
   <розділ>/<тема>/<сторінка>.mdx  підсторінка великої теми (за потреби)
 source.config.ts                  MDX-плагіни: формули зі спільного конвеєра (shared/lib/markdown), читабельні формули в пошуку
 src/                              три рівні: app → features → shared
-  app/                            рівень 1, лише маршрути Next: layout, [[...slug]]/page, api/search, error, not-found, global.css
+  app/                            рівень 1, лише маршрути Next: layout, [[...slug]]/page, test/page (змішаний тест),
+                                  progress/page (прогрес), api/search, error, not-found, global.css
   features/                       рівень 2, можливості; кожна — сегменти model/ hooks/ components/
     content/                      контент як дані — єдина можливість, що знає Fumadocs
-      model/                      source (loader), frontmatter (схеми за іменем файлу + рендер тренажера), topic, page-tree
+      model/                      source (loader), frontmatter (схеми за іменем файлу + рендер тренажера), topic (угода про
+                                  шлях теми — єдине місце), page-tree (меню + сторінки поза контентом), practices (усі практики)
       components/                 topic-switch, mdx-components (реєстр компонентів для MDX)
     trainer/                      тренажер — без Next і Fumadocs
       model/                      exam (профіль іспиту), question/ (реєстр типів завдань: base — контракт, choice, match,
                                   multi, short, registry — єдиний список), schema (+ lint — евристики якості), session, order,
-                                  number, progress (сховище прогресу),
+                                  number, progress (сховище прогресу, version 3), mixed (змішаний тест), overview (зведення прогресу),
                                   verdict, answer-text, render (лише для збирання: Markdown+KaTeX → HTML, рисунки)
-      hooks/                      use-trainer-session, use-progress, use-trainer-keyboard, use-step-focus, use-mounted
+      hooks/                      use-trainer-session, use-progress, use-progress-overview, use-trainer-keyboard, use-step-focus, use-mounted
       components/                 trainer (вхід для сторінки), trainer-card, answer-field + answer-registry (поле за типом),
-                                  choice-answer, match-answer, multi-answer, short-answer, option-row, feedback, results, shared
+                                  choice-answer, match-answer, multi-answer, short-answer, option-row, feedback, results,
+                                  rule-bars, mixed-trainer, progress-overview, shared
     diagram/                      схеми для теорії, усі в одних сегментах: model/number-sets, hooks/use-delayed-clear,
                                   components/number-sets (сервер, KaTeX) + number-sets-diagram (клієнт)
   shared/                         рівень 3, спільне без домену; про features не знає
@@ -99,7 +102,8 @@ scripts/                          check-content (перевірка контен
 
 ## Архітектурні рішення
 
-- **Меню** (`src/features/content/model/page-tree.ts`): назва теми лише розгортає її, усередині — «Теорія», «Практика» й підсторінки; тема без практики — звичайний пункт. Футер «‹ ›» бере повні назви сторінок (`page.tsx`), бо в дереві вони короткі.
+- **Меню** (`src/features/content/model/page-tree.ts`): назва теми лише розгортає її, усередині — «Теорія», «Практика» й підсторінки; тема без практики — звичайний пункт; у кінці — «Змішаний тест» і «Прогрес» (`EXTRA_PAGES`, маршрути в `app/`). Футер «‹ ›» бере повні назви сторінок (`page.tsx`), бо в дереві вони короткі.
+- **Угода про шлях теми** — лише `src/features/content/model/topic.ts` (`topicPage`, `urlOf`, `isPracticeUrl`…): схема frontmatter, меню, `check-content`, e2e і юніт-прогін беруть її звідти. Нова глибина чи інший файл практики — зміна в одному місці.
 - **Тренажер показує сторінка сама**, якщо у frontmatter є `trainer` (`src/app/[[...slug]]/page.tsx`). У MDX нічого вставляти не треба.
 - **Перевірки під час збирання** (повідомлення — українською, з місцем помилки):
   - схема frontmatter залежить від імені файлу: `practice.mdx` зобов'язаний мати `trainer` і не може мати тексту під frontmatter, решта сторінок — не можуть мати `trainer`;

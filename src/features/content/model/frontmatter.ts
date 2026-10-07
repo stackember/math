@@ -1,5 +1,5 @@
 import { readFile } from "node:fs/promises"
-import { dirname, extname, resolve } from "node:path"
+import { dirname, extname, relative, resolve } from "node:path"
 
 import { pageSchema } from "fumadocs-core/source/schema"
 import { z } from "zod"
@@ -8,8 +8,11 @@ import { renderTrainer } from "@/features/trainer/model/render"
 import { trainerSchema } from "@/features/trainer/model/schema"
 import { createMarkdown } from "@/shared/lib/markdown"
 
-/** Файл практики: content/<розділ>/<тема>/practice.mdx. */
-const isPracticeFile = (path: string) => /(^|[\\/])practice\.mdx$/.test(path)
+import { CONTENT_DIR, topicPage } from "./topic"
+
+/** Файл практики за угодою з topic.ts; шлях від fumadocs-mdx може бути абсолютним або від кореня. */
+const isPracticeFile = (path: string) =>
+  topicPage(relative(resolve(CONTENT_DIR), resolve(path)))?.kind === "practice"
 
 /** Тіло MDX після frontmatter (порожній рядок, якщо файл — лише frontmatter). */
 const bodyOf = (source: string) => source.replace(/^---\r?\n[\s\S]*?\r?\n---/, "").trim()

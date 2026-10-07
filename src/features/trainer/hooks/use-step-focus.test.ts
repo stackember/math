@@ -31,6 +31,15 @@ describe("useStepFocus", () => {
     expect(document.activeElement).toBe(card)
   })
 
+  it("не відбирає фокус у поля відповіді всередині картки", () => {
+    const { card, rerender } = setup({ index: 0, mode: "full", checked: false })
+    const input = document.createElement("input")
+    card.append(input)
+    input.focus()
+    rerender({ index: 1, mode: "full", checked: false })
+    expect(document.activeElement).toBe(input)
+  })
+
   it("після перевірки фокус на головній кнопці", () => {
     const { button, rerender } = setup({ index: 0, mode: "full", checked: false })
     rerender({ index: 0, mode: "full", checked: true })

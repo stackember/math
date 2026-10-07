@@ -1,13 +1,11 @@
 import type * as PageTree from "fumadocs-core/page-tree"
 import type { LoaderPlugin } from "fumadocs-core/source"
 
-import { PRACTICE } from "./topic"
+import { isPracticeUrl } from "./topic"
 
 /** Пункти меню всередині теми (повні назви лишаються в заголовках сторінок і у вкладці). */
 export const THEORY_MENU_NAME = "Теорія"
 export const PRACTICE_MENU_NAME = "Практика"
-
-const isPracticeUrl = (url: string) => url.endsWith(`/${PRACTICE}`)
 
 /**
  * Меню: назва теми лише розгортає її, а всередині — «Теорія», «Практика» й підсторінки.
@@ -32,9 +30,16 @@ export function simplifyTree(nodes: PageTree.Node[]): PageTree.Node[] {
   })
 }
 
+/** Сторінки поза контентом — у кінці меню після роздільника (маршрути в src/app/). */
+const EXTRA_PAGES: PageTree.Node[] = [
+  { type: "separator", name: "Усі теми" },
+  { type: "page", name: "Змішаний тест", url: "/test" },
+  { type: "page", name: "Прогрес", url: "/progress" },
+]
+
 const simplifyRoot = (root: PageTree.Root): PageTree.Root => ({
   ...root,
-  children: simplifyTree(root.children),
+  children: [...simplifyTree(root.children), ...EXTRA_PAGES],
 })
 
 export function pageTreePlugin(): LoaderPlugin {

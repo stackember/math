@@ -29,7 +29,7 @@ const short: RenderedQuestion = {
 }
 
 const choose = (option: number) => updateDraft("choice", select(option))
-const type = (value: string) => updateDraft("short", input(value))
+const type = (value: string) => updateDraft("short", input(0, value))
 
 describe("useTrainerSession", () => {
   it("проходить тест і повідомляє результат лише раз, після повного проходу", () => {

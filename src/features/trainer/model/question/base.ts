@@ -37,6 +37,8 @@ export interface CommonRendered {
   id: number
   /** Рисунок як HTML (`<img>` з вбудованими даними). */
   figureHtml?: string
+  /** Slug теми — лише у змішаному тесті, де завдання з різних практик. */
+  topic?: string
 }
 
 /** Опис типу для документації: повідомлення схеми, `npm run rules`, skill /practice. */

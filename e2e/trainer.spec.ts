@@ -1,7 +1,15 @@
 import { expect, test, type Page } from "@playwright/test"
 
+import type { Question } from "@/features/trainer/model/question/registry"
+
 import { answerer, card, option, shortInput } from "./answers"
-import { PRACTICE_URLS, practiceQuestions, REFERENCE_PRACTICE_URLS } from "./content"
+import {
+  PRACTICE_URL_BY_SLUG,
+  PRACTICE_URLS,
+  practiceQuestions,
+  REFERENCE_PRACTICE_URLS,
+  topicTitle,
+} from "./content"
 
 /** Еталонний тренажер для перевірки клавіатури, повторення помилок і окремих типів. */
 const REFERENCE = "/numbers/number-sets/practice"
@@ -27,7 +35,8 @@ const button = (page: Page, name: string | RegExp) =>
  */
 async function openTrainer(page: Page, url: string) {
   await page.goto(url)
-  await expect(card(page)).toContainText(/Завдання 1 \/ \d+/)
+  // перша поява картки — після гідрації; під навантаженням паралельних воркерів це довше за 5 с
+  await expect(card(page)).toContainText(/Завдання 1 \/ \d+/, { timeout: 20_000 })
   const match = /Завдання 1 \/ (\d+)/.exec(await card(page).innerText())
   if (!match) throw new Error("не знайдено лічильник завдань")
   return Number(match[1])
@@ -41,18 +50,20 @@ async function currentQuestion(page: Page, url: string) {
   return question
 }
 
-/** Доходить до першого завдання заданого типу, відповідаючи правильно на попередні. */
-async function reachType(page: Page, url: string, type: string) {
+/** Доходить до першого завдання, що підходить, відповідаючи правильно на попередні. */
+async function reach(page: Page, url: string, fits: (question: Question) => boolean, what: string) {
   const total = await openTrainer(page, url)
   for (let i = 1; i <= total; i++) {
     const question = await currentQuestion(page, url)
-    if (question.type === type) return question
+    if (fits(question)) return question
     await answerer(question).correct(page, question)
     await button(page, "Перевірити").click()
     await button(page, /^Далі/).click()
   }
-  throw new Error(`у ${url} немає завдання типу ${type}`)
+  throw new Error(`у ${url} немає завдання: ${what}`)
 }
+const reachType = (page: Page, url: string, type: string) =>
+  reach(page, url, (q) => q.type === type, `тип ${type}`)
 
 // нова практика потрапляє в повне проходження автоматично: локально — еталонні, у CI — усі
 const FULL_RUN = process.env.CI ? PRACTICE_URLS : REFERENCE_PRACTICE_URLS
@@ -84,9 +95,49 @@ for (const url of FULL_RUN) {
     await expect(
       page.getByText(`Найкращий результат: ${total}/${total} · останній: ${total}/${total}`)
     ).toBeVisible()
+
+    // сторінка прогресу бачить той самий запис: тема, результат, правила
+    const [area, slug] = url.split("/").filter(Boolean)
+    await page.goto("/progress")
+    const topic = page.locator(`[data-topic="${slug}"]`)
+    await expect(topic.getByRole("link", { name: topicTitle(area, slug) })).toBeVisible()
+    await expect(topic).toContainText(`Найкращий результат: ${total}/${total}`)
+    await expect(topic).toContainText("проходів: 1")
+    await expect(topic.getByRole("list")).toBeVisible()
     expect(errors).toEqual([])
   })
 }
+
+test("змішаний тест: завдання з практик, результат і власний рекорд", async ({ page }) => {
+  const errors = collectErrors(page)
+  const total = await openTrainer(page, "/test")
+  expect(total).toBeGreaterThan(0)
+  await expect(card(page).getByRole("button", { name: "Інший набір" })).toHaveCount(0)
+  await expect(page.getByRole("button", { name: "Інший набір" })).toBeVisible()
+
+  for (let i = 1; i <= total; i++) {
+    await expect(card(page)).toContainText(`Завдання ${i} / ${total}`)
+    const slug = await card(page).getAttribute("data-topic")
+    const id = await card(page).getAttribute("data-question")
+    const question = practiceQuestions(PRACTICE_URL_BY_SLUG[slug ?? ""])[Number(id)]
+    if (!question) throw new Error(`невідоме завдання ${slug}/${id}`)
+    await answerer(question).correct(page, question)
+    await button(page, "Перевірити").click()
+    await expect(verdict(page)).toHaveText("Правильно")
+    await button(page, i === total ? "Результат" : /^Далі/).click()
+  }
+  await expect(card(page)).toContainText(`${total} / ${total}`)
+  // правила підписані темою
+  await expect(page.getByRole("list", { name: "Результат за правилами" })).toContainText(":")
+
+  await page.reload()
+  await expect(
+    page.getByText(`Найкращий результат: ${total}/${total} · останній: ${total}/${total}`)
+  ).toBeVisible()
+  await page.goto("/progress")
+  await expect(page.getByText(`Змішаний тест — найкращий: ${total}/${total}`)).toBeVisible()
+  expect(errors).toEqual([])
+})
 
 test("повторення помилок: лише неправильні завдання, рекорд не змінюється", async ({ page }) => {
   const total = await openTrainer(page, REFERENCE)
@@ -135,6 +186,29 @@ test("нечислова коротка відповідь — підказка,
   await shortInput(page).press("Enter")
   await expect(card(page).locator("[data-slot=alert]")).toContainText("Введи число")
   await expect(button(page, "Перевірити")).toBeVisible()
+})
+
+test("коротка відповідь з двома полями: обидва обовʼязкові, перевіряються разом", async ({
+  page,
+}) => {
+  const question = await reach(
+    page,
+    REFERENCE,
+    (q) => q.type === "short" && Array.isArray(q.answer),
+    "коротка відповідь з двома полями"
+  )
+  if (question.type !== "short" || !Array.isArray(question.answer))
+    throw new Error("очікувалось два поля")
+  const [first, second] = question.answer
+
+  await expect(card(page).getByRole("textbox", { name: "Відповідь 1" })).toBeFocused()
+  await shortInput(page, 0).fill(String(first))
+  await expect(button(page, "Перевірити")).toBeDisabled()
+  // поля переплутано — помилка з обома правильними числами у відповіді
+  await shortInput(page, 1).fill(String(first))
+  await shortInput(page, 0).fill(String(second))
+  await button(page, "Перевірити").click()
+  await expect(verdict(page)).toContainText(`Неправильно. Відповідь: ${first}; ${second}`)
 })
 
 test("кілька правильних: перемикання варіантів, цифра, позначки після перевірки", async ({

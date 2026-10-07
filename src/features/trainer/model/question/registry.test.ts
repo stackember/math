@@ -23,6 +23,7 @@ const match: Question = {
   answer: [0, 1, 2],
 }
 const short: Question = { ...common, type: "short", answer: -2.5 }
+const twoShort: Question = { ...common, type: "short", answer: [3, -2] }
 const multi: Question = {
   ...common,
   type: "multi",
@@ -68,12 +69,34 @@ describe("match", () => {
 describe("short", () => {
   const m = moduleOf(short)
   it("приймає різні записи того самого числа, не число — пояснює", () => {
-    expect(m.isCorrect(short, { type: "short", value: "−2,5" })).toBe(true)
-    expect(m.isCorrect(short, { type: "short", value: "-5/2" })).toBe(true)
-    expect(m.isCorrect(short, { type: "short", value: "2,5" })).toBe(false)
-    expect(m.invalidReason({ type: "short", value: "abc" })).toMatch(/Введи число/)
-    expect(m.invalidReason({ type: "short", value: "4" })).toBeNull()
+    expect(m.isCorrect(short, { type: "short", values: ["−2,5"] })).toBe(true)
+    expect(m.isCorrect(short, { type: "short", values: ["-5/2"] })).toBe(true)
+    expect(m.isCorrect(short, { type: "short", values: ["2,5"] })).toBe(false)
+    expect(m.invalidReason({ type: "short", values: ["abc"] })).toMatch(/Введи число/)
+    expect(m.invalidReason({ type: "short", values: ["4"] })).toBeNull()
     expect(m.answerHtml(short, [])).toBe("−2,5")
+  })
+  it("кілька полів: по одному на число, зараховується лише повний збіг", () => {
+    expect(m.emptyDraft(twoShort)).toEqual({ type: "short", values: ["", ""] })
+    expect(m.isAnswered({ type: "short", values: ["3", ""] })).toBe(false)
+    expect(m.isCorrect(twoShort, { type: "short", values: ["3", "−2"] })).toBe(true)
+    expect(m.isCorrect(twoShort, { type: "short", values: ["-2", "3"] })).toBe(false)
+    expect(m.invalidReason({ type: "short", values: ["3", "x"] })).toMatch(/Введи число/)
+    expect(m.answerHtml(twoShort, [])).toBe("3; −2")
+    expect(input(1, "7")({ type: "short", values: ["3", ""] })).toEqual({
+      type: "short",
+      values: ["3", "7"],
+    })
+  })
+  it("схема: масив з 2 чисел; 1 чи 3 — помилка", () => {
+    const messages = (answer: unknown) => {
+      const result = questionSchema.safeParse({ ...common, type: "short", answer })
+      return result.success ? [] : result.error.issues.map((i) => i.message)
+    }
+    expect(messages([3, -2])).toEqual([])
+    expect(messages([3])).not.toEqual([])
+    expect(messages([1, 2, 3])).not.toEqual([])
+    expect(messages("3")).not.toEqual([])
   })
 })
 
@@ -115,26 +138,29 @@ describe("multi", () => {
 
 describe("контракт кожного типу", () => {
   it.each(QUESTION_MODULES.map((m) => [m.type, m] as const))(
-    "%s: приклад з meta валідний, еталонні чернетки правильна/неправильна",
+    "%s: приклади з meta валідні, еталонні чернетки правильна/неправильна",
     (type, module) => {
-      const [parsed] = parse(module.meta.example) as unknown[]
-      const result = questionSchema.safeParse(parsed)
-      expect(result.success, JSON.stringify(result.error?.issues)).toBe(true)
-      if (!result.success) return
-      const question = result.data
-      expect(question.type).toBe(type)
+      const examples = parse(module.meta.example) as unknown[]
+      expect(examples.length).toBeGreaterThan(0)
+      for (const example of examples) {
+        const result = questionSchema.safeParse(example)
+        expect(result.success, JSON.stringify(result.error?.issues)).toBe(true)
+        if (!result.success) return
+        const question = result.data
+        expect(question.type).toBe(type)
 
-      const m = moduleOf(question)
-      const correct = m.correctDraft(question)
-      const wrong = m.wrongDraft(question)
-      expect(correct.type).toBe(type)
-      expect(m.isAnswered(correct)).toBe(true)
-      expect(m.invalidReason(correct)).toBeNull()
-      expect(m.isCorrect(question, correct)).toBe(true)
-      expect(m.isAnswered(wrong)).toBe(true)
-      expect(m.invalidReason(wrong)).toBeNull()
-      expect(m.isCorrect(question, wrong)).toBe(false)
-      expect(m.isAnswered(m.emptyDraft(question))).toBe(false)
+        const m = moduleOf(question)
+        const correct = m.correctDraft(question)
+        const wrong = m.wrongDraft(question)
+        expect(correct.type).toBe(type)
+        expect(m.isAnswered(correct)).toBe(true)
+        expect(m.invalidReason(correct)).toBeNull()
+        expect(m.isCorrect(question, correct)).toBe(true)
+        expect(m.isAnswered(wrong)).toBe(true)
+        expect(m.invalidReason(wrong)).toBeNull()
+        expect(m.isCorrect(question, wrong)).toBe(false)
+        expect(m.isAnswered(m.emptyDraft(question))).toBe(false)
+      }
     }
   )
 
@@ -152,17 +178,17 @@ describe("updateDraft", () => {
       type: "choice",
       choice: 3,
     })
-    expect(updateDraft("choice", select(3))({ type: "short", value: "" })).toEqual({
+    expect(updateDraft("choice", select(3))({ type: "short", values: [""] })).toEqual({
       type: "short",
-      value: "",
+      values: [""],
     })
     expect(updateDraft("match", pick(1, 4))({ type: "match", match: [0, null, null] })).toEqual({
       type: "match",
       match: [0, 4, null],
     })
-    expect(updateDraft("short", input("7"))({ type: "short", value: "" })).toEqual({
+    expect(updateDraft("short", input(0, "7"))({ type: "short", values: [""] })).toEqual({
       type: "short",
-      value: "7",
+      values: ["7"],
     })
   })
 })

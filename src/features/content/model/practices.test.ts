@@ -9,27 +9,41 @@ import type { RenderedTrainer } from "@/features/trainer/model/schema"
 import { createSession, score, sessionReducer } from "@/features/trainer/model/session"
 
 import { frontmatterSchema } from "./frontmatter"
+import { CONTENT_DIR, topicPage } from "./topic"
 
 /**
  * Кожна практика з content/ проходиться до кінця через reducer тренажера — за секунди, без браузера:
  * та сама схема й рендер, що під час збирання, еталонні чернетки з модулів типів.
  * Нова практика чи новий тип завдання потрапляють сюди самі; e2e лишає по одному сценарію на тип.
  */
-const CONTENT = "content"
-const PRACTICES = readdirSync(CONTENT, { recursive: true })
-  .map((file) => `${CONTENT}/${String(file).split(sep).join("/")}`)
-  .filter((file) => file.endsWith("/practice.mdx"))
+const PRACTICES = readdirSync(CONTENT_DIR, { recursive: true })
+  .map((file) => String(file).split(sep).join("/"))
+  .filter((file) => topicPage(file)?.kind === "practice")
+  .map((file) => `${CONTENT_DIR}/${file}`)
 
-async function renderedTrainer(file: string): Promise<RenderedTrainer> {
-  const source = readFileSync(file, "utf8")
-  const yaml = /^---\r?\n([\s\S]*?)\r?\n---/.exec(source)?.[1] ?? ""
-  const result = await frontmatterSchema({ path: file, source })["~standard"].validate(parse(yaml))
-  expect(result.issues, JSON.stringify(result.issues)).toBeUndefined()
-  return (result as { value: { trainer: RenderedTrainer } }).value.trainer
+// рендер формул KaTeX — секунди на практику, тому один раз на файл і з більшим тайм-аутом
+const rendered = new Map<string, Promise<RenderedTrainer>>()
+function renderedTrainer(file: string): Promise<RenderedTrainer> {
+  let trainer = rendered.get(file)
+  if (!trainer) {
+    trainer = (async () => {
+      const source = readFileSync(file, "utf8")
+      const yaml = /^---\r?\n([\s\S]*?)\r?\n---/.exec(source)?.[1] ?? ""
+      const result = await frontmatterSchema({ path: file, source })["~standard"].validate(
+        parse(yaml)
+      )
+      expect(result.issues, JSON.stringify(result.issues)).toBeUndefined()
+      return (result as { value: { trainer: RenderedTrainer } }).value.trainer
+    })()
+    rendered.set(file, trainer)
+  }
+  return trainer
 }
 
+const SLOW = { timeout: 60_000 }
+
 describe.each(PRACTICES)("%s", (file) => {
-  it("кожне завдання: правильна чернетка зараховується, неправильна — ні", async () => {
+  it("кожне завдання: правильна чернетка зараховується, неправильна — ні", SLOW, async () => {
     const { questions } = await renderedTrainer(file)
     for (const question of questions) {
       const m = moduleOf(question)
@@ -45,7 +59,7 @@ describe.each(PRACTICES)("%s", (file) => {
     }
   })
 
-  it("повне проходження з правильними відповідями дає N/N", async () => {
+  it("повне проходження з правильними відповідями дає N/N", SLOW, async () => {
     const { questions } = await renderedTrainer(file)
     let session = createSession(questions, "full")
     for (const step of session.steps) {

@@ -9,8 +9,9 @@ export const option = (page: Page, index: number, row?: number) =>
   card(page).locator(
     row === undefined ? `[data-option="${index}"]` : `[data-row="${row}"] [data-option="${index}"]`
   )
-export const shortInput = (page: Page): Locator =>
-  card(page).getByRole("textbox", { name: "Відповідь" })
+/** Поле короткої відповіді: єдине або за індексом (`data-field`), коли полів кілька. */
+export const shortInput = (page: Page, field = 0): Locator =>
+  card(page).locator(`[data-answer=short] [data-field="${field}"]`)
 
 interface Answerer<Q> {
   /** Правильна відповідь із frontmatter. */
@@ -52,8 +53,16 @@ export const ANSWERERS = {
     },
   },
   short: {
-    correct: (page, q) => shortInput(page).fill(String(q.answer)),
-    wrong: (page, q) => shortInput(page).fill(String(q.answer + 1)),
+    async correct(page, q) {
+      const answers = Array.isArray(q.answer) ? q.answer : [q.answer]
+      for (const [field, answer] of answers.entries())
+        await shortInput(page, field).fill(String(answer))
+    },
+    async wrong(page, q) {
+      const answers = Array.isArray(q.answer) ? q.answer : [q.answer]
+      for (const [field, answer] of answers.entries())
+        await shortInput(page, field).fill(String(field === 0 ? answer + 1 : answer))
+    },
   },
 } satisfies { [T in Question["type"]]: Answerer<Of<T>> }
 

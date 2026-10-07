@@ -64,6 +64,7 @@ export function TrainerCard({ trainer, trainerId }: Props) {
         ref={cardRef}
         tabIndex={-1}
         data-question={step?.question.id}
+        data-topic={step?.question.topic}
         className="scroll-mt-20 gap-5 py-5 outline-none [--card-spacing:--spacing(5)]"
       >
         {!step ? (

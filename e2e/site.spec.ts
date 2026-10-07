@@ -1,9 +1,9 @@
 import { expect, test } from "@playwright/test"
 
-import { CONTENT_URLS, NUMBERS_ORDER, topicTitle } from "./content"
+import { CONTENT_URLS, EXTRA_URLS, NUMBERS_ORDER, topicTitle } from "./content"
 
 // нові теми й практики потрапляють у цю перевірку самі
-for (const url of CONTENT_URLS) {
+for (const url of [...CONTENT_URLS, ...EXTRA_URLS]) {
   test(`${url}: сторінка відкривається без помилок`, async ({ page }) => {
     const errors: string[] = []
     page.on("pageerror", (error) => errors.push(error.message))
@@ -35,6 +35,11 @@ test("меню: теми в порядку meta.json розділу", async ({ p
   const positions = NUMBERS_ORDER.map((slug) => labels.indexOf(topicTitle("numbers", slug)))
   expect(positions.every((p) => p >= 0)).toBe(true)
   expect([...positions].sort((a, b) => a - b)).toEqual(positions)
+
+  // змішаний тест і прогрес — у кінці меню, після всіх тем (далі лише перемикач теми)
+  const extra = ["Змішаний тест", "Прогрес"].map((label) => labels.indexOf(label))
+  expect(extra[0]).toBeGreaterThan(Math.max(...positions))
+  expect(extra[1]).toBe(extra[0] + 1)
 })
 
 test("меню: тема з практикою розгортається в «Теорія» і «Практика»", async ({ page }, testInfo) => {

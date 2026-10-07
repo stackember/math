@@ -79,7 +79,11 @@ export default defineConfig([
         segment("hooks"),
         segment("components"),
       ],
-      "boundaries/files": [{ pattern: "src/features/*/model/render.ts", category: "build" }],
+      "boundaries/files": [
+        { pattern: "src/features/*/model/render.ts", category: "build" },
+        // угода про шлях теми — чиста функція, її виконують і e2e
+        { pattern: "src/features/content/model/topic.ts", category: "convention" },
+      ],
       "boundaries/ignore": ["**/*.test.ts"],
     },
     rules: {
@@ -126,6 +130,7 @@ export default defineConfig([
             { from: element("e2e"), allow: { to: element("e2e") } },
             { from: element("e2e"), allow: { to: { module: { origin: "core" } } } },
             { from: element("e2e"), allow: { to: element("model"), dependency: { kind: "type" } } },
+            { from: element("e2e"), allow: { to: { file: { categories: "convention" } } } },
 
             {
               from: element("components"),

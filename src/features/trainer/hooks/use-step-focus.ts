@@ -31,6 +31,9 @@ export function useStepFocus(
     const card = cardRef.current
     if (!card) return
     if (card.getBoundingClientRect().top < 0) card.scrollIntoView?.({ behavior: "smooth" })
+    // поле відповіді вже взяло фокус саме (коротка відповідь) — не відбирати
+    const active = document.activeElement
+    if (active instanceof HTMLInputElement && card.contains(active)) return
     card.focus({ preventScroll: true })
   }, [cardRef, index, mode])
 }

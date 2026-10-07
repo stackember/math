@@ -3,21 +3,39 @@ import { sep } from "node:path"
 
 import { parse } from "yaml"
 
+import {
+  CONTENT_DIR as CONTENT,
+  isPracticeUrl,
+  practiceFile,
+  slugsOfUrl,
+  theoryFile,
+  topicOf,
+  urlOf,
+} from "@/features/content/model/topic"
 import type { Question } from "@/features/trainer/model/question/registry"
 
-const CONTENT_DIR = new URL("../content/", import.meta.url)
+const CONTENT_DIR = new URL(`../${CONTENT}/`, import.meta.url)
 
 const FILES = readdirSync(CONTENT_DIR, { recursive: true })
   .map((file) => String(file).split(sep).join("/"))
   .filter((file) => /\.mdx?$/.test(file))
 
-/** Адреси всіх сторінок контенту: content/numbers/modulus/index.mdx → /numbers/modulus. */
-export const CONTENT_URLS = FILES.map(
-  (file) => `/${file.replace(/\.mdx?$/, "").replace(/(^|\/)index$/, "")}`
-)
+/** Адреси всіх сторінок контенту (угода — topic.ts): numbers/modulus/index.mdx → /numbers/modulus. */
+export const CONTENT_URLS = FILES.map(urlOf)
 
-/** Адреси всіх практик: content/numbers/number-sets/practice.mdx → /numbers/number-sets/practice. */
-export const PRACTICE_URLS = CONTENT_URLS.filter((url) => url.endsWith("/practice"))
+/** Адреси всіх практик: numbers/number-sets/practice.mdx → /numbers/number-sets/practice. */
+export const PRACTICE_URLS = CONTENT_URLS.filter(isPracticeUrl)
+
+/** Сторінки поза контентом (маршрути в src/app/): змішаний тест і прогрес. */
+export const EXTRA_URLS = ["/test", "/progress"]
+
+/** Сторінки, де тренажер вантажиться лише в браузері — чекати картку перед вимірами. */
+export const TRAINER_URLS = [...PRACTICE_URLS, "/test"]
+
+/** Практика за slug теми — для змішаного тесту, де картка несе `data-topic`. */
+export const PRACTICE_URL_BY_SLUG = Object.fromEntries(
+  PRACTICE_URLS.map((url) => [topicOf(slugsOfUrl(url))?.slug ?? "", url])
+)
 
 /** Порядок тем розділу «Числа» з його meta.json — для перевірки меню. */
 export const NUMBERS_ORDER = (
@@ -35,7 +53,13 @@ const frontmatterOf = (file: string) => {
 
 /** Назва теми з frontmatter її теорії — так вона підписана в меню. */
 export function topicTitle(area: string, slug: string): string {
-  return frontmatterOf(`${area}/${slug}/index.mdx`).title as string
+  return frontmatterOf(theoryFile({ area, slug })).title as string
+}
+
+const topicOfUrl = (url: string) => {
+  const topic = topicOf(slugsOfUrl(url))
+  if (!topic) throw new Error(`${url}: не адреса теми`)
+  return topic
 }
 
 /**
@@ -43,7 +67,8 @@ export function topicTitle(area: string, slug: string): string {
  * Сирий YAML без значень за замовчуванням, але тип і відповідь — як у схемі.
  */
 export function practiceQuestions(url: string): Question[] {
-  return (frontmatterOf(`${url.slice(1)}.mdx`).trainer as { questions: Question[] }).questions
+  return (frontmatterOf(practiceFile(topicOfUrl(url))).trainer as { questions: Question[] })
+    .questions
 }
 
 /**
