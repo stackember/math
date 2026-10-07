@@ -2,7 +2,7 @@ import { Step, Steps } from "fumadocs-ui/components/steps"
 import defaultMdxComponents from "fumadocs-ui/mdx"
 import type { MDXComponents } from "mdx/types"
 
-import { NumberSets } from "@/components/diagrams/NumberSets"
+import { NumberSets } from "@/diagrams/NumberSets"
 
 /** Компоненти, доступні в MDX без імпорту: стандартні Fumadocs (Callout, Cards…), Steps, схеми. */
 export function getMDXComponents(components?: MDXComponents) {

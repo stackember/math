@@ -1,3 +1,5 @@
+import "server-only"
+
 import rehypeKatex from "rehype-katex"
 import rehypeStringify from "rehype-stringify"
 import remarkMath from "remark-math"
@@ -5,8 +7,9 @@ import remarkParse from "remark-parse"
 import remarkRehype from "remark-rehype"
 import { unified } from "unified"
 
-import { katexOptions, rehypeKatexStrict } from "../math"
-import type { Question, Quiz } from "./schema"
+import { katexOptions, rehypeKatexStrict } from "@/lib/math"
+
+import type { Question, TrainerData } from "./schema"
 
 const processor = unified()
   .use(remarkParse)
@@ -40,7 +43,7 @@ export async function renderInline(markdown: string): Promise<string> {
 
 /** Завдання з HTML замість Markdown і зі стабільним `id`. */
 export type RenderedQuestion = Question & { id: number }
-export type RenderedQuiz = { tags: Quiz["tags"]; questions: RenderedQuestion[] }
+export type RenderedTrainer = { tags: TrainerData["tags"]; questions: RenderedQuestion[] }
 
 const all = (items: string[]) => Promise.all(items.map(renderInline))
 
@@ -74,12 +77,14 @@ async function renderQuestion(question: Question, id: number): Promise<RenderedQ
 }
 
 /** Рендер під час збирання: у браузер іде готовий HTML, KaTeX там не потрібен. */
-export async function renderQuiz(quiz: Quiz): Promise<RenderedQuiz> {
+export async function renderTrainer(trainer: TrainerData): Promise<RenderedTrainer> {
   const tags = await Promise.all(
-    Object.entries(quiz.tags).map(async ([id, label]) => [id, await renderInline(label)] as const)
+    Object.entries(trainer.tags).map(
+      async ([id, label]) => [id, await renderInline(label)] as const
+    )
   )
   return {
     tags: Object.fromEntries(tags),
-    questions: await Promise.all(quiz.questions.map(renderQuestion)),
+    questions: await Promise.all(trainer.questions.map(renderQuestion)),
   }
 }

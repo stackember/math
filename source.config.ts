@@ -7,7 +7,7 @@ import { katexOptions, rehypeKatexStrict } from "./src/lib/math"
 
 /**
  * Глобальні налаштування MDX: формули KaTeX поверх стандартного набору плагінів Fumadocs.
- * Колекції (що і звідки читати, схема frontmatter) — у src/lib/source.ts.
+ * Колекції (що і звідки читати, схема frontmatter) — у src/content/source.ts.
  */
 export default defineConfig({
   mdxOptions: {

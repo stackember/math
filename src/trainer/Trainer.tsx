@@ -1,30 +1,34 @@
-import { renderQuiz } from "@/lib/quiz/render"
-import { storageKey } from "@/lib/quiz/storage"
-import type { ContentPage } from "@/lib/source"
-import { topicOf } from "@/lib/topics"
+import "server-only"
 
-import { QuizLoader } from "./QuizLoader"
+import { renderTrainer } from "./render"
+import type { TrainerData } from "./schema"
+import { TrainerLoader } from "./ui/TrainerLoader"
 
 /**
- * Тренажер сторінки практики: бере `quiz` з frontmatter, рендерить формули на сервері
- * (під час збирання) і віддає готові дані клієнтському компоненту.
- * У MDX вставляється як `<Trainer />` — сторінку підставляє [[...slug]]/page.tsx.
+ * Тренажер сторінки практики: формули рендеряться на сервері (під час збирання),
+ * готові дані йдуть клієнтському компоненту. Сторінка (src/app/[[...slug]]/page.tsx)
+ * показує його сама, коли у frontmatter є `trainer` — у MDX нічого вставляти не треба.
  */
-export async function Trainer({ page }: { page: ContentPage }) {
-  if (topicOf(page.slugs)?.section !== "practice") {
-    throw new Error(
-      `«${page.path}»: <Trainer /> можна вставляти лише на сторінки content/practice/`
-    )
-  }
-  if (!page.data.quiz) {
-    throw new Error(`«${page.path}»: немає поля quiz у frontmatter`)
-  }
-
-  const quiz = await renderQuiz(page.data.quiz)
+export async function Trainer({
+  data,
+  storageKey,
+  legacyStorageKey,
+}: {
+  data: TrainerData
+  /** Ключ збережених результатів у localStorage. */
+  storageKey: string
+  /** Ключ до переїзду сторінок, щоб не пропав прогрес. */
+  legacyStorageKey?: string
+}) {
+  const trainer = await renderTrainer(data)
 
   return (
     <div className="not-prose mt-8">
-      <QuizLoader quiz={quiz} storageKey={storageKey(page.slugs.join("/"))} />
+      <TrainerLoader
+        trainer={trainer}
+        storageKey={storageKey}
+        legacyStorageKey={legacyStorageKey}
+      />
     </div>
   )
 }

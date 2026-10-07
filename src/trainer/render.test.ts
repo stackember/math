@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest"
 
-import { renderInline, renderQuiz } from "./render"
-import type { Quiz } from "./schema"
+import { renderInline, renderTrainer } from "./render"
+import type { TrainerData } from "./schema"
 
 describe("renderInline", () => {
   it("рендерить формули, макроси множин і Markdown в один рядок", async () => {
@@ -23,13 +23,13 @@ describe("renderInline", () => {
   })
 })
 
-describe("renderQuiz", () => {
+describe("renderTrainer", () => {
   it("рендерить формули і в завданнях, і в назвах тегів", async () => {
-    const quiz: Quiz = {
+    const trainer: TrainerData = {
       tags: { symbols: "Значки $\\in$" },
       questions: [{ type: "short", level: 1, tag: "symbols", q: "$2+2$?", why: "$4$", answer: 4 }],
     }
-    const rendered = await renderQuiz(quiz)
+    const rendered = await renderTrainer(trainer)
     expect(rendered.tags.symbols).toContain('class="katex"')
     expect(rendered.questions[0]).toMatchObject({ id: 0, type: "short", answer: 4 })
     expect(rendered.questions[0].q).toContain('class="katex"')

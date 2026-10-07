@@ -12,18 +12,21 @@ export interface TrainerStats {
   last?: Score
 }
 
+/** Ключ результатів тренажера: `trainer:<slug теми>` — не залежить від адреси сторінки. */
 export const storageKey = (trainerId: string) => `trainer:${trainerId}`
 
-export function loadStats(key: string): TrainerStats {
+/** `legacyKey` — ключ до переїзду сторінок; читається, якщо за новим ключем ще нічого немає. */
+export function loadStats(key: string, legacyKey?: string): TrainerStats {
   try {
-    return JSON.parse(localStorage.getItem(key) ?? "{}") as TrainerStats
+    const raw = localStorage.getItem(key) ?? (legacyKey ? localStorage.getItem(legacyKey) : null)
+    return JSON.parse(raw ?? "{}") as TrainerStats
   } catch {
     return {}
   }
 }
 
-export function saveResult(key: string, result: Score): TrainerStats {
-  const stats = loadStats(key)
+export function saveResult(key: string, result: Score, legacyKey?: string): TrainerStats {
+  const stats = loadStats(key, legacyKey)
   const isBest = !stats.best || result.score / result.total > stats.best.score / stats.best.total
   const next: TrainerStats = { best: isBest ? result : stats.best, last: result }
   try {

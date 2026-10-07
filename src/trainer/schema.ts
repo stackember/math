@@ -1,16 +1,18 @@
 import { z } from "zod"
 
+import { EXAM } from "./exam"
+
 /**
- * Правила складу тренажера. Перевіряються під час збирання сайту
+ * Правила складу тренажера — з профілю іспиту (exam.ts). Перевіряються під час збирання сайту
  * (`npm run build`, а в `npm run dev` — одразу при збереженні) — порушення зупиняє збирання з поясненням.
  */
 export const RULES = {
-  total: [10, 15],
-  levels: { 1: [3, 5], 2: [5, 8], 3: [2, 3] },
-  types: { match: [1, 2], short: [2, 3] },
-  choiceOptions: 5,
-  matchLeft: 3,
-  matchRight: 5,
+  total: EXAM.composition.total,
+  levels: EXAM.composition.levels,
+  types: EXAM.composition.types,
+  choiceOptions: EXAM.choiceOptions,
+  matchLeft: EXAM.matchLeft,
+  matchRight: EXAM.matchRight,
 } as const
 
 /** Варіанти, що залежать від порядку, ламаються після перемішування. */
@@ -73,22 +75,26 @@ export const questionSchema = z.discriminatedUnion("type", [
   shortQuestion,
 ])
 
-export const quizSchema = z
-  .object({
-    /** id правила → назва українською (видно в результатах). */
-    tags: z.record(z.string().regex(/^[a-z][a-z0-9-]*$/, "id тегу: латиниця в kebab-case"), text),
-    questions: z.array(questionSchema),
-  })
-  .superRefine((quiz, ctx) => {
+/** Блок `trainer` у frontmatter practice.mdx: правила теми (теги) і завдання. */
+export const trainerSchema = z
+  .object(
+    {
+      /** id правила → назва українською (видно в результатах). */
+      tags: z.record(z.string().regex(/^[a-z][a-z0-9-]*$/, "id тегу: латиниця в kebab-case"), text),
+      questions: z.array(questionSchema),
+    },
+    { error: "немає блоку trainer: у practice.mdx тренажер обов'язковий" }
+  )
+  .superRefine((trainer, ctx) => {
     const issue = (message: string, path: (string | number)[] = []) =>
       ctx.addIssue({ code: "custom", message, path: ["questions", ...path] })
 
     const usedTags = new Set<string>()
     const seen = new Set<string>()
 
-    quiz.questions.forEach((question, i) => {
+    trainer.questions.forEach((question, i) => {
       const n = `завдання ${i + 1}`
-      if (!(question.tag in quiz.tags))
+      if (!(question.tag in trainer.tags))
         issue(`${n}: тег «${question.tag}» не описаний у tags`, [i, "tag"])
       usedTags.add(question.tag)
 
@@ -114,17 +120,17 @@ export const quizSchema = z
       }
     })
 
-    for (const tag of Object.keys(quiz.tags)) {
+    for (const tag of Object.keys(trainer.tags)) {
       if (!usedTags.has(tag)) issue(`тег «${tag}» не покритий жодним завданням`)
     }
 
     const inRange = (label: string, value: number, [min, max]: readonly [number, number]) => {
       if (value < min || value > max) issue(`${label}: потрібно ${min}–${max}, зараз ${value}`)
     }
-    const count = (predicate: (q: (typeof quiz.questions)[number]) => boolean) =>
-      quiz.questions.filter(predicate).length
+    const count = (predicate: (q: (typeof trainer.questions)[number]) => boolean) =>
+      trainer.questions.filter(predicate).length
 
-    inRange("усього завдань", quiz.questions.length, RULES.total)
+    inRange("усього завдань", trainer.questions.length, RULES.total)
     for (const level of [1, 2, 3] as const) {
       inRange(
         `рівень ${"★".repeat(level)}`,
@@ -144,8 +150,5 @@ export const quizSchema = z
     )
   })
 
-export type Quiz = z.infer<typeof quizSchema>
+export type TrainerData = z.infer<typeof trainerSchema>
 export type Question = z.infer<typeof questionSchema>
-export type ChoiceQuestion = Extract<Question, { type: "choice" }>
-export type MatchQuestion = Extract<Question, { type: "match" }>
-export type ShortQuestion = Extract<Question, { type: "short" }>

@@ -1,4 +1,4 @@
-import type { RenderedQuestion } from "@/lib/quiz/render"
+import type { RenderedQuestion } from "@/trainer/render"
 import { cn } from "@/lib/utils"
 
 import { Html, LETTERS, type Mark } from "./shared"

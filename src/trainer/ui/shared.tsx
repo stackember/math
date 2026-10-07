@@ -1,18 +1,15 @@
 import { cn } from "@/lib/utils"
+import { EXAM } from "@/trainer/exam"
 
-export const LETTERS = ["А", "Б", "В", "Г", "Д"] as const
-
-export const LEVELS = {
-  1: "легке",
-  2: "рівень НМТ",
-  3: "пастка",
-} as const
+/** Літери варіантів і рівні складності — з профілю іспиту. */
+export const LETTERS = EXAM.letters
+export const LEVELS = EXAM.levels
 
 /** Стан варіанта/клітинки після вибору та перевірки. */
 export type Mark = "idle" | "selected" | "correct" | "missed" | "wrong"
 
 /**
- * HTML, згенерований під час збирання з нашого ж Markdown (див. lib/quiz/render.ts),
+ * HTML, згенерований під час збирання з нашого ж Markdown (див. ../render.ts),
  * тому вставляти його напряму безпечно.
  */
 export function Html({

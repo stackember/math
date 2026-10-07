@@ -1,6 +1,6 @@
 {
-  "title": "Теорія",
-  "icon": "BookOpen",
+  "title": "Числа",
+  "icon": "Hash",
   "defaultOpen": true,
   "pages": ["number-sets", "modulus", "integers", "divisibility", "..."]
 }

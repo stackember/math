@@ -1,5 +1,3 @@
 {
-  "title": "Практика",
-  "icon": "Dumbbell",
-  "defaultOpen": true
+  "pages": ["...", "practice"]
 }

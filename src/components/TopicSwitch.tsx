@@ -1,19 +1,21 @@
 import { ArrowLeft, Dumbbell } from "lucide-react"
 import Link from "next/link"
 
-import { source } from "@/lib/source"
-import { pairSlugs, type Topic } from "@/lib/topics"
+import { source } from "@/content/source"
+import { isPractice, practiceSlugs, theorySlugs, topicOf } from "@/content/topic"
 import { cn } from "@/lib/utils"
 
 /**
- * Перехід між теорією і практикою однієї теми.
- * Пара шукається за однаковою назвою файлу: theory/<slug> ↔ practice/<slug>.
+ * Перехід між теорією і практикою однієї теми: практика — сусідній файл practice.mdx.
+ * На теорії без практики кнопки немає.
  */
-export function TopicSwitch({ topic }: { topic: Topic }) {
-  const pair = source.getPage(pairSlugs(topic))
-  if (!pair) return null
+export function TopicSwitch({ slugs }: { slugs: readonly string[] }) {
+  const topic = topicOf(slugs)
+  if (!topic) return null
 
-  const toPractice = topic.section === "theory"
+  const toPractice = !isPractice(slugs)
+  const pair = source.getPage(toPractice ? practiceSlugs(topic) : theorySlugs(topic))
+  if (!pair) return null
 
   return (
     <Link

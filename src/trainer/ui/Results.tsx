@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button"
 import { CardContent, CardFooter } from "@/components/ui/card"
-import { score, tagStats, wrongQuestions, type Session } from "@/lib/quiz/session"
+import { score, tagStats, wrongQuestions, type Session } from "@/trainer/session"
 import { cn } from "@/lib/utils"
 
 import { Html } from "./shared"

@@ -1,9 +1,9 @@
 import { CircleAlert, CircleCheck, CircleX } from "lucide-react"
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import { formatNumber } from "@/lib/quiz/check"
-import type { RenderedQuestion } from "@/lib/quiz/render"
-import type { Step } from "@/lib/quiz/session"
+import { formatNumber } from "@/trainer/check"
+import type { RenderedQuestion } from "@/trainer/render"
+import type { Step } from "@/trainer/session"
 import { cn } from "@/lib/utils"
 
 import { Html, LETTERS } from "./shared"

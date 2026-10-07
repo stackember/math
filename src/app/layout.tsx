@@ -7,14 +7,15 @@ import { Sigma } from "lucide-react"
 import type { Metadata } from "next"
 import { Inter } from "next/font/google"
 
+import { source } from "@/content/source"
 import { translations } from "@/lib/i18n"
-import { source } from "@/lib/source"
+import { EXAM } from "@/trainer/exam"
 
 const inter = Inter({ subsets: ["latin", "cyrillic"] })
 
 export const metadata: Metadata = {
-  title: { default: "Математика · НМТ", template: "%s · Математика НМТ" },
-  description: "Особиста підготовка до НМТ з математики: теорія і практика за темами.",
+  title: { default: EXAM.siteTitle, template: EXAM.titleTemplate },
+  description: EXAM.siteDescription,
 }
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
@@ -28,7 +29,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
               title: (
                 <>
                   <Sigma className="size-5" aria-hidden />
-                  Математика · НМТ
+                  {EXAM.siteTitle}
                 </>
               ),
             }}

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 
-import { quizSchema } from "./schema"
+import { trainerSchema } from "./schema"
 
 const choice = (n: number, level: 1 | 2 | 3, extra = {}) => ({
   type: "choice",
@@ -42,11 +42,11 @@ function validQuiz() {
 }
 
 const messages = (data: unknown) => {
-  const result = quizSchema.safeParse(data)
+  const result = trainerSchema.safeParse(data)
   return result.success ? [] : result.error.issues.map((i) => i.message)
 }
 
-describe("quizSchema", () => {
+describe("trainerSchema", () => {
   it("приймає тренажер за правилами", () => {
     expect(messages(validQuiz())).toEqual([])
   })

@@ -5,8 +5,9 @@ import { useEffect, useReducer, useRef, useState } from "react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card"
-import { isAnswered } from "@/lib/quiz/check"
-import type { RenderedQuiz } from "@/lib/quiz/render"
+import { cn } from "@/lib/utils"
+import { isAnswered } from "@/trainer/check"
+import type { RenderedTrainer } from "@/trainer/render"
 import {
   createSession,
   currentStep,
@@ -15,9 +16,8 @@ import {
   score,
   sessionReducer,
   wrongQuestions,
-} from "@/lib/quiz/session"
-import { loadStats, saveResult, type TrainerStats } from "@/lib/quiz/storage"
-import { cn } from "@/lib/utils"
+} from "@/trainer/session"
+import { loadStats, saveResult, type TrainerStats } from "@/trainer/storage"
 
 import { ChoiceAnswer } from "./ChoiceAnswer"
 import { Feedback, Warning } from "./Feedback"
@@ -27,15 +27,16 @@ import { Html, LEVELS } from "./shared"
 import { ShortAnswer } from "./ShortAnswer"
 
 interface Props {
-  quiz: RenderedQuiz
+  trainer: RenderedTrainer
   storageKey: string
+  legacyStorageKey?: string
 }
 
-export default function Quiz({ quiz, storageKey }: Props) {
-  const [session, dispatch] = useReducer(sessionReducer, quiz.questions, (questions) =>
+export default function TrainerCard({ trainer, storageKey, legacyStorageKey }: Props) {
+  const [session, dispatch] = useReducer(sessionReducer, trainer.questions, (questions) =>
     createSession(questions, "full")
   )
-  const [stats, setStats] = useState<TrainerStats>(() => loadStats(storageKey))
+  const [stats, setStats] = useState<TrainerStats>(() => loadStats(storageKey, legacyStorageKey))
   const cardRef = useRef<HTMLDivElement>(null)
   const mainButtonRef = useRef<HTMLButtonElement>(null)
 
@@ -44,7 +45,7 @@ export default function Quiz({ quiz, storageKey }: Props) {
   const correct = session.results[session.index]
 
   const start = (mode: "full" | "retry") => {
-    const questions = mode === "full" ? quiz.questions : wrongQuestions(session)
+    const questions = mode === "full" ? trainer.questions : wrongQuestions(session)
     dispatch({ type: "start", session: createSession(questions, mode) })
   }
 
@@ -52,7 +53,13 @@ export default function Quiz({ quiz, storageKey }: Props) {
 
   const next = () => {
     if (isLastStep(session) && session.mode === "full") {
-      setStats(saveResult(storageKey, { score: score(session), total: session.steps.length }))
+      setStats(
+        saveResult(
+          storageKey,
+          { score: score(session), total: session.steps.length },
+          legacyStorageKey
+        )
+      )
     }
     dispatch({ type: "next" })
   }
@@ -102,7 +109,7 @@ export default function Quiz({ quiz, storageKey }: Props) {
         {finished || !step ? (
           <Results
             session={session}
-            tags={quiz.tags}
+            tags={trainer.tags}
             onRetryWrong={() => start("retry")}
             onRestart={() => start("full")}
           />
@@ -111,19 +118,11 @@ export default function Quiz({ quiz, storageKey }: Props) {
             <CardHeader className="gap-3">
               <div className="flex items-center justify-between gap-3 text-sm text-muted-foreground">
                 <span>
-                  {session.mode === "full" ? "Питання" : "Повторення помилок"} {session.index + 1} /{" "}
-                  {session.steps.length}
+                  {session.mode === "full" ? "Завдання" : "Повторення помилок"} {session.index + 1}{" "}
+                  / {session.steps.length}
                 </span>
-                <Badge
-                  variant={
-                    step.question.level === 3
-                      ? "destructive"
-                      : step.question.level === 2
-                        ? "default"
-                        : "secondary"
-                  }
-                >
-                  {"★".repeat(step.question.level)} {LEVELS[step.question.level]}
+                <Badge variant={LEVELS[step.question.level].variant}>
+                  {"★".repeat(step.question.level)} {LEVELS[step.question.level].label}
                 </Badge>
               </div>
 

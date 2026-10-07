@@ -7,7 +7,7 @@ import dynamic from "next/dynamic"
  * а результати беруться з localStorage — серверний рендер дав би інший HTML,
  * ніж браузер (помилка гідрації).
  */
-export const QuizLoader = dynamic(() => import("./Quiz"), {
+export const TrainerLoader = dynamic(() => import("./TrainerCard"), {
   ssr: false,
   loading: () => <p className="text-muted-foreground">Завантаження тренажера…</p>,
 })

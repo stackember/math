@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test"
 
 test("схема множин: число підсвічує всі свої множини", async ({ page }) => {
-  await page.goto("/theory/number-sets")
+  await page.goto("/numbers/number-sets")
   const set = (id: string) => page.locator(`[data-set=${id}]`)
 
   // клік до гідрації React нічого не робить — повторюємо, доки схема не відреагує
@@ -24,7 +24,7 @@ test("схема множин: мишкою підсвітка йде за ку�
   page,
 }, testInfo) => {
   test.skip(testInfo.project.name !== "desktop", "наведення — лише для мишки")
-  await page.goto("/theory/number-sets")
+  await page.goto("/numbers/number-sets")
   const set = (id: string) => page.locator(`[data-set=${id}]`)
 
   await expect(async () => {
