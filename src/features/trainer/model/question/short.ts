@@ -1,8 +1,8 @@
 import { z } from "zod"
 
-import { EXAM } from "../exam"
+import type { ExamProfile } from "../exam/profile"
 import { formatNumber, parseNumber } from "../number"
-import { common, type QuestionModule } from "./base"
+import { common, type QuestionModule, type QuestionOf } from "./base"
 
 export const INVALID_NUMBER = "Введи число, наприклад 4, −2,5 або 0,75."
 
@@ -14,26 +14,23 @@ const number = z
   .number({ error: "answer: число, напр. 4 або -2.5 (не рядок)" })
   .refine(isTypeable, { error: "answer: ціле число або десятковий дріб до 4 знаків після коми" })
 
-/** Коротка відповідь: число або кілька чисел у окремих полях (структурована відповідь НМТ). */
-const schema = z.strictObject({
-  type: z.literal("short"),
-  ...common,
-  /** Ціле або скінченний десятковий дріб: 4, -2.5, 0.75; кілька полів — масив [3, -2]. */
-  answer: z.union(
-    [
-      number,
-      z
-        .array(number)
-        .min(2, { error: "answer: одне число або масив з 2 чисел — по одному на поле" })
-        .max(EXAM.shortAnswers, {
-          error: `answer: щонайбільше ${EXAM.shortAnswers} поля, як на бланку`,
-        }),
-    ],
-    { error: "answer: число (4, -2.5) або масив чисел для кількох полів ([3, -2])" }
-  ),
-})
-
-type ShortQuestion = z.output<typeof schema>
+/** Коротка відповідь: число або кілька чисел у окремих полях (структурована відповідь). */
+const schema = ({ short: { fields } }: ExamProfile) =>
+  z.strictObject({
+    type: z.literal("short"),
+    ...common,
+    /** Ціле або скінченний десятковий дріб: 4, -2.5, 0.75; кілька полів — масив [3, -2]. */
+    answer: z.union(
+      [
+        number,
+        z
+          .array(number)
+          .min(2, { error: "answer: одне число або масив чисел — по одному на поле" })
+          .max(fields, { error: `answer: щонайбільше ${fields} поля, як на бланку` }),
+      ],
+      { error: "answer: число (4, -2.5) або масив чисел для кількох полів ([3, -2])" }
+    ),
+  })
 
 export interface ShortDraft {
   type: "short"
@@ -42,8 +39,8 @@ export interface ShortDraft {
 }
 
 /** Правильні відповіді як список — одна чи кілька. */
-const answersOf = (question: ShortQuestion): number[] =>
-  Array.isArray(question.answer) ? question.answer : [question.answer]
+const answersOf = ({ answer }: QuestionOf<typeof schema>): number[] =>
+  Array.isArray(answer) ? answer : [answer]
 
 /** Ввести текст у поле. */
 export const input = (field: number, value: string) => (draft: ShortDraft) => ({
@@ -56,7 +53,8 @@ export const short = {
   schema,
   meta: {
     label: "коротка відповідь",
-    answerHint: `поле для числа: ціле або десятковий дріб (кома чи крапка), мінус будь-який, дріб −5/2 теж приймається; \`answer: [3, -2]\` — ${EXAM.shortAnswers} поля, як у структурованій відповіді НМТ`,
+    answerHint:
+      "поле для числа: ціле або десятковий дріб (кома чи крапка), мінус будь-який, дріб −5/2 теж приймається; масив у `answer` — кілька полів",
     example: `- type: short
   level: 2
   tag: classify

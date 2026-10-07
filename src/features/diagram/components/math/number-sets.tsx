@@ -3,7 +3,13 @@ import katex from "katex"
 import { latexToText } from "@/shared/lib/latex-text"
 import { katexOptions } from "@/shared/lib/math"
 
-import { captionTex, EXAMPLES, membership, SET_NAMES, type SetId } from "../model/number-sets"
+import {
+  captionTex,
+  EXAMPLES,
+  membership,
+  SET_NAMES,
+  type SetId,
+} from "../../model/math/number-sets"
 import { NumberSetsDiagram, type DiagramItem, type DiagramSet } from "./number-sets-diagram"
 
 const tex = (source: string) => katex.renderToString(source, katexOptions)

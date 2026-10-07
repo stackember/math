@@ -2,13 +2,17 @@ import { loader } from "fumadocs-core/source"
 import { lucideIconsPlugin } from "fumadocs-core/source/lucide-icons"
 import { metaSchema } from "fumadocs-core/source/schema"
 import { defineDocs } from "fumadocs-mdx/macro"
+import { z } from "zod"
+
+import { examProfileIdSchema } from "@/features/trainer/model/exam/registry"
 
 import { frontmatterSchema } from "./frontmatter"
 import { pageTreePlugin } from "./page-tree"
 
 /**
  * Контент сайту з папки content/. Frontmatter перевіряється під час збирання схемою,
- * що залежить від файлу (./frontmatter.ts): practice.mdx — з тренажером, решта — без.
+ * що залежить від файлу (./frontmatter.ts): practice.mdx — з тренажером за профілем предмета, решта — без.
+ * meta.json предмета (`root: true`) несе ще `exam` — профіль іспиту з реєстру.
  * Глобальні MDX-плагіни (формули) — у source.config.ts.
  */
 const content = defineDocs({
@@ -18,7 +22,10 @@ const content = defineDocs({
     schema: frontmatterSchema,
   },
   meta: {
-    schema: metaSchema,
+    schema: metaSchema.extend({
+      exam: examProfileIdSchema.optional(),
+      description: z.string().optional(),
+    }),
   },
 })
 

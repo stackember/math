@@ -66,9 +66,9 @@ describe("createProgressStore", () => {
     expect(saved.attempts.at(-1)?.at).toBe(1000 + ATTEMPTS_KEPT + 3)
   })
 
-  it("читає записи версій 1 і 2 (і старий ключ), історії в них немає", () => {
+  it("читає записи версій 1 і 2 (і ключі до появи предметів), історії в них немає", () => {
     const v1 = JSON.stringify({ best: { score: 4, total: 5 }, last: { score: 1, total: 5 } })
-    expect(createProgressStore(() => memory({ "trainer:practice/t": v1 })).load("t")).toEqual({
+    expect(createProgressStore(() => memory({ "trainer:practice/t": v1 })).load("math/t")).toEqual({
       version: 3,
       best: { score: 4, total: 5 },
       last: { score: 1, total: 5 },
@@ -82,7 +82,7 @@ describe("createProgressStore", () => {
       last: { score: 4, total: 5 },
       tags: { a: { correct: 4, total: 5 } },
     })
-    expect(createProgressStore(() => memory({ "trainer:t": v2 })).load("t")).toEqual({
+    expect(createProgressStore(() => memory({ "trainer:t": v2 })).load("math/t")).toEqual({
       version: 3,
       best: { score: 4, total: 5 },
       last: { score: 4, total: 5 },

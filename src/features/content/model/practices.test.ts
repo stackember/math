@@ -4,6 +4,7 @@ import { sep } from "node:path"
 import { parse } from "yaml"
 import { describe, expect, it } from "vitest"
 
+import { profileOf } from "@/features/trainer/model/exam/registry"
 import { moduleOf } from "@/features/trainer/model/question/registry"
 import type { RenderedTrainer } from "@/features/trainer/model/schema"
 import { createSession, score, sessionReducer } from "@/features/trainer/model/session"
@@ -44,18 +45,19 @@ const SLOW = { timeout: 60_000 }
 
 describe.each(PRACTICES)("%s", (file) => {
   it("кожне завдання: правильна чернетка зараховується, неправильна — ні", SLOW, async () => {
-    const { questions } = await renderedTrainer(file)
+    const { exam, questions } = await renderedTrainer(file)
+    const profile = profileOf(exam)
     for (const question of questions) {
       const m = moduleOf(question)
       const correct = m.correctDraft(question)
       const wrong = m.wrongDraft(question)
-      const label = `завдання ${question.id + 1} (${question.type})`
+      const label = `завдання ${question.index + 1} (${question.type})`
 
       expect(m.invalidReason(correct), label).toBeNull()
       expect(m.isCorrect(question, correct), label).toBe(true)
       expect(m.invalidReason(wrong), label).toBeNull()
       expect(m.isCorrect(question, wrong), label).toBe(false)
-      expect(m.answerHtml(question, m.displayOrder(question, () => 0)), label).not.toBe("")
+      expect(m.answerHtml(question, m.displayOrder(question, () => 0), profile), label).not.toBe("")
     }
   })
 

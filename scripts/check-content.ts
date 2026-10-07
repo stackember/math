@@ -1,7 +1,7 @@
 /**
  * Швидка перевірка контенту без Next (секунди замість збирання):
  *   npm run check:content            — усі файли в content/
- *   npx tsx scripts/check-content.ts content/numbers/modulus/index.mdx — лише ці файли
+ *   npx tsx scripts/check-content.ts content/math/numbers/modulus/index.mdx — лише ці файли
  * Вивід: `файл:рядок:колонка: повідомлення` українською; код виходу 1, якщо є помилки.
  * Ті самі схеми й плагіни, що й під час збирання, плюс правила, які збирання не перевіряє.
  */
@@ -21,7 +21,15 @@ import { VFile } from "vfile"
 import { isMap, isNode, isSeq, LineCounter, parseDocument } from "yaml"
 
 import { frontmatterSchema } from "@/features/content/model/frontmatter"
-import { CONTENT_DIR, isStrayPage, theoryFile, topicPage } from "@/features/content/model/topic"
+import { profileOfSubject, subjectMetaSchema } from "@/features/content/model/subject"
+import {
+  CONTENT_DIR,
+  isStrayPage,
+  subjectIndex,
+  theoryFile,
+  topicId,
+  topicPage,
+} from "@/features/content/model/topic"
 import { lintQuestion } from "@/features/trainer/model/lint"
 import { questionSchema } from "@/features/trainer/model/question/registry"
 import { katexOptions } from "@/shared/lib/math"
@@ -117,10 +125,12 @@ export async function checkMdx(file: string, source: string): Promise<Problem[]>
     }
 
     // попередження якості завдань (severity warn): збирання їх не зупиняє, перевірка — показує
-    if (!result.issues) {
+    const practice = topicPage(inContent(file))
+    if (!result.issues && practice?.kind === "practice") {
+      const schema = questionSchema(profileOfSubject(practice.topic.subject))
       const questions = doc.getIn(["trainer", "questions"], true)
       for (const [i, raw] of (isSeq(questions) ? questions.items : []).entries()) {
-        const parsed = questionSchema.safeParse(isNode(raw) ? raw.toJS(doc) : raw)
+        const parsed = schema.safeParse(isNode(raw) ? raw.toJS(doc) : raw)
         if (!parsed.success) continue
         const offset = (raw as { range?: [number, number] }).range?.[0]
         const line = offset === undefined ? 2 : lineCounter.linePos(offset).line + 1
@@ -199,7 +209,7 @@ export async function checkMdx(file: string, source: string): Promise<Problem[]>
   return problems
 }
 
-/** Перевірки структури content/: пари теорія↔практика, унікальні slug тем, meta.json. */
+/** Перевірки структури content/: предмети, пари теорія↔практика, унікальні теми в предметі, meta.json. */
 export async function checkStructure(root = CONTENT): Promise<Problem[]> {
   const problems: Problem[] = []
   const entries = (await readdir(root, { recursive: true, withFileTypes: true })).map((e) => ({
@@ -210,11 +220,13 @@ export async function checkStructure(root = CONTENT): Promise<Problem[]> {
   const dirs = new Set(entries.filter((e) => e.dir).map((e) => e.path))
 
   const topics = new Map<string, string[]>()
+  const subjects = new Set<string>()
   for (const file of files) {
     const page = topicPage(file)
+    if (page) subjects.add(page.topic.subject)
     if (page?.kind === "theory") {
-      const { slug } = page.topic
-      topics.set(slug, [...(topics.get(slug) ?? []), `${root}/${file}`])
+      const id = topicId(page.topic)
+      topics.set(id, [...(topics.get(id) ?? []), `${root}/${file}`])
     }
     if (page?.kind === "practice" && !files.has(theoryFile(page.topic))) {
       problems.push({
@@ -225,15 +237,47 @@ export async function checkStructure(root = CONTENT): Promise<Problem[]> {
     if (isStrayPage(file)) {
       problems.push({
         file: `${root}/${file}`,
-        message: "сторінка просто в розділі: тема — це папка content/<розділ>/<тема>/index.mdx",
+        message:
+          "сторінка не на своєму місці: тема — це папка content/<предмет>/<розділ>/<тема>/index.mdx",
       })
     }
   }
-  for (const [slug, where] of topics) {
+  for (const [id, where] of topics) {
     if (where.length > 1) {
       problems.push({
         file: where[1],
-        message: `slug теми «${slug}» уже є в ${where[0]} — ключ прогресу trainer:<slug> має бути унікальним`,
+        message: `тема «${id}» уже є в ${where[0]} — ключ прогресу trainer:<предмет>/<slug> має бути унікальним`,
+      })
+    }
+  }
+
+  // предмет: meta.json з root: true і exam з реєстру, огляд index.mdx
+  for (const subject of subjects) {
+    const meta = `${subject}/meta.json`
+    if (!files.has(meta)) {
+      problems.push({
+        file: `${root}/${subject}`,
+        message: `предмет без ${meta}: потрібен { "title", "root": true, "exam": "<профіль іспиту>" }`,
+      })
+      continue
+    }
+    try {
+      const parsed = subjectMetaSchema.safeParse(
+        JSON.parse(await readFile(`${root}/${meta}`, "utf8"))
+      )
+      for (const issue of parsed.success ? [] : parsed.error.issues) {
+        problems.push({
+          file: `${root}/${meta}`,
+          message: `${issue.path.join(".")}: ${issue.message}`,
+        })
+      }
+    } catch (error) {
+      problems.push({ file: `${root}/${meta}`, message: `JSON: ${(error as Error).message}` })
+    }
+    if (![...files].some((f) => subjectIndex(f) === subject)) {
+      problems.push({
+        file: `${root}/${subject}`,
+        message: "предмет без index.mdx — огляду: що це за предмет і як вчитися",
       })
     }
   }
@@ -249,7 +293,7 @@ export async function checkStructure(root = CONTENT): Promise<Problem[]> {
       problems.push({ file: path, message: `JSON: ${(error as Error).message}` })
       continue
     }
-    if (folder && !folder.includes("/") && typeof meta.title !== "string") {
+    if (folder.split("/").length === 2 && typeof meta.title !== "string") {
       problems.push({ file: path, message: "розділ без title (назва в меню)" })
     }
     if (typeof meta.icon === "string") {

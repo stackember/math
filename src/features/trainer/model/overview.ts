@@ -1,10 +1,10 @@
-import { MIXED_ID, splitGlobalTag } from "./mixed"
+import { splitGlobalTag } from "./mixed"
 import type { Progress } from "./progress"
 import type { TagStat } from "./session"
 
 /** Тема з практикою — що про неї знає сторінка прогресу (дані з контенту, без сховища). */
 export interface TopicInfo {
-  /** Slug теми — ключ прогресу. */
+  /** Id теми `<предмет>/<slug>` — ключ прогресу. */
   id: string
   title: string
   /** Адреса практики. */
@@ -52,17 +52,21 @@ const add = (a: TagStat, b: TagStat): TagStat => ({
   total: a.total + b.total,
 })
 
-/** Зведення прогресу за всіма темами: читає сховище один раз на тему й для змішаного тесту. */
-export function overview(topics: TopicInfo[], load: (id: string) => Progress): Overview {
-  const mixed = load(MIXED_ID)
+/** Зведення прогресу за темами: читає сховище один раз на тему й для змішаного тесту (`mixedId`). */
+export function overview(
+  topics: TopicInfo[],
+  load: (id: string) => Progress,
+  mixedId: string
+): Overview {
+  const mixed = load(mixedId)
 
   const fromMixed = new Map<string, Map<string, TagStat>>()
   for (const [key, stat] of Object.entries(mixed.tags)) {
     const parts = splitGlobalTag(key)
     if (!parts) continue
-    const byTag = fromMixed.get(parts.slug) ?? new Map<string, TagStat>()
+    const byTag = fromMixed.get(parts.topicId) ?? new Map<string, TagStat>()
     byTag.set(parts.tag, stat)
-    fromMixed.set(parts.slug, byTag)
+    fromMixed.set(parts.topicId, byTag)
   }
 
   const overviews = topics.map((topic): TopicOverview => {

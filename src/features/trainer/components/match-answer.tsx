@@ -4,7 +4,7 @@ import { cn } from "@/shared/lib/utils"
 import { RadioGroup } from "@/shared/ui/radio-group"
 
 import { pick } from "../model/question/match"
-import { Html, LETTERS, type AnswerProps, type Mark } from "./shared"
+import { Html, type AnswerProps, type Mark } from "./shared"
 
 const cellStyles: Record<Mark, string> = {
   idle: "border-border bg-background not-data-readonly:hover:border-primary",
@@ -31,7 +31,8 @@ function markOf(
  * `data-row` / `data-option` — індекси з frontmatter (для e2e).
  */
 export function MatchAnswer(props: AnswerProps<"match">) {
-  const { question, draft, checked, onAnswer } = props
+  const { question, draft, profile, checked, onAnswer } = props
+  const letters = profile.letters
   const columns = { gridTemplateColumns: `1.5rem repeat(${question.right.length}, 2.25rem)` }
 
   return (
@@ -48,7 +49,7 @@ export function MatchAnswer(props: AnswerProps<"match">) {
         <ol className="space-y-1.5">
           {question.right.map((item, column) => (
             <li key={column} className="flex items-baseline gap-3">
-              <span className="w-4 shrink-0 font-semibold text-primary">{LETTERS[column]}</span>
+              <span className="w-4 shrink-0 font-semibold text-primary">{letters[column]}</span>
               <Html html={item} />
             </li>
           ))}
@@ -63,7 +64,7 @@ export function MatchAnswer(props: AnswerProps<"match">) {
         >
           <span />
           {question.right.map((_, column) => (
-            <span key={column}>{LETTERS[column]}</span>
+            <span key={column}>{letters[column]}</span>
           ))}
         </div>
         {question.left.map((_, row) => (
@@ -85,7 +86,7 @@ export function MatchAnswer(props: AnswerProps<"match">) {
                 key={column}
                 value={String(column)}
                 data-option={column}
-                aria-label={`${row + 1} — ${LETTERS[column]}`}
+                aria-label={`${row + 1} — ${letters[column]}`}
                 className={cn(
                   "block size-9 rounded-md border-2 transition-colors outline-none not-data-readonly:cursor-pointer focus-visible:ring-3 focus-visible:ring-ring/50",
                   cellStyles[markOf(row, column, props)]

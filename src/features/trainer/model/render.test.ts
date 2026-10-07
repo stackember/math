@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest"
 
 import { createMarkdown } from "@/shared/lib/markdown"
 
+import { DEFAULT_PROFILE as profile } from "./exam/registry"
 import { renderTrainer } from "./render"
 import type { TrainerData } from "./schema"
 
@@ -27,9 +28,10 @@ describe("renderTrainer", () => {
         },
       ],
     }
-    const rendered = await renderTrainer(trainer, { md, readAsset })
+    const rendered = await renderTrainer(trainer, { md, profile, readAsset })
     expect(rendered.tags.symbols).toContain('class="katex"')
-    expect(rendered.questions[0]).toMatchObject({ id: 0, type: "short", answer: 2 })
+    expect(rendered.questions[0]).toMatchObject({ index: 0, type: "short", answer: 2 })
+    expect(rendered.exam).toBe(profile.id)
     expect(rendered.questions[0].q).toContain("katex-display")
     expect(rendered.questions[0].figureHtml).toBeUndefined()
   })
@@ -47,7 +49,7 @@ describe("renderTrainer", () => {
       tags: { t: "Т" },
       questions: [{ ...base, figure: { src: "./figures/ok.svg", alt: "Трикутник" } }],
     }
-    const rendered = await renderTrainer(withFigure, { md, readAsset })
+    const rendered = await renderTrainer(withFigure, { md, profile, readAsset })
     expect(rendered.questions[0].figureHtml).toContain(`src="data:image/svg+xml;base64,${svg}"`)
     expect(rendered.questions[0].figureHtml).toContain('alt="Трикутник"')
 
@@ -55,6 +57,6 @@ describe("renderTrainer", () => {
       tags: { t: "Т" },
       questions: [{ ...base, figure: { src: "./figures/no.svg", alt: "x" } }],
     }
-    await expect(renderTrainer(missing, { md, readAsset })).rejects.toThrow(/немає файлу/)
+    await expect(renderTrainer(missing, { md, profile, readAsset })).rejects.toThrow(/немає файлу/)
   })
 })

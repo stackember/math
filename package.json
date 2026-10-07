@@ -13,6 +13,7 @@
     "check": "npm run check:content && npm run typecheck && npm run lint && npm test",
     "check:content": "tsx scripts/check-content.ts",
     "rules": "tsx scripts/print-rules.ts",
+    "export": "tsx scripts/export-content.ts",
     "typecheck": "next typegen && tsc --noEmit",
     "lint": "eslint .",
     "knip": "knip",

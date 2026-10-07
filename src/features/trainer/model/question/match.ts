@@ -1,38 +1,31 @@
 import { z } from "zod"
 
-import { EXAM } from "../exam"
-import { common, text, type QuestionModule } from "./base"
+import type { ExamProfile } from "../exam/profile"
+import { common, text, uniqueIssue, type QuestionModule } from "./base"
 
-const unique = (items: readonly unknown[]) => new Set(items).size === items.length
-
-/** Відповідність: кожному пункту 1–3 — один варіант А–Д. */
-const schema = z
-  .strictObject({
-    type: z.literal("match"),
-    ...common,
-    left: z.array(text).length(EXAM.matchLeft, { error: `left: рівно ${EXAM.matchLeft} пункти` }),
-    right: z
-      .array(text)
-      .length(EXAM.matchRight, { error: `right: рівно ${EXAM.matchRight} варіантів` }),
-    /** `answer[i]` — індекс у `right` для рядка `left[i]`. */
-    answer: z
-      .array(
-        z
-          .int({ error: "answer: індекси варіантів у right, з 0" })
-          .min(0, { error: "answer: індекси з 0" })
-          .max(EXAM.matchRight - 1, { error: `answer: індекси від 0 до ${EXAM.matchRight - 1}` })
-      )
-      .length(EXAM.matchLeft, {
-        error: `answer: по одному індексу на кожен з ${EXAM.matchLeft} пунктів`,
-      }),
-  })
-  .superRefine((question, ctx) => {
-    const issue = (path: string, message: string) =>
-      ctx.addIssue({ code: "custom", path: [path], message })
-    if (!unique(question.left)) issue("left", "пункти повторюються")
-    if (!unique(question.right)) issue("right", "варіанти повторюються")
-    if (!unique(question.answer)) issue("answer", "відповіді у відповідності мають бути різними")
-  })
+/** Відповідність: кожному пункту зліва — один варіант справа (розміри — з профілю іспиту). */
+const schema = ({ match: { left, right } }: ExamProfile) =>
+  z
+    .strictObject({
+      type: z.literal("match"),
+      ...common,
+      left: z.array(text).length(left, { error: `left: рівно ${left} пункти` }),
+      right: z.array(text).length(right, { error: `right: рівно ${right} варіантів` }),
+      /** `answer[i]` — індекс у `right` для рядка `left[i]`. */
+      answer: z
+        .array(
+          z
+            .int({ error: "answer: індекси варіантів у right, з 0" })
+            .min(0, { error: "answer: індекси з 0" })
+            .max(right - 1, { error: `answer: індекси від 0 до ${right - 1}` })
+        )
+        .length(left, { error: `answer: по одному індексу на кожен з ${left} пунктів` }),
+    })
+    .superRefine((q, ctx) => {
+      uniqueIssue(ctx, q.left, "left", "пункти повторюються")
+      uniqueIssue(ctx, q.right, "right", "варіанти повторюються")
+      uniqueIssue(ctx, q.answer, "answer", "відповіді у відповідності мають бути різними")
+    })
 
 export interface MatchDraft {
   type: "match"
@@ -51,13 +44,14 @@ export const match = {
   schema,
   meta: {
     label: "відповідність",
-    answerHint: `${EXAM.matchLeft} пункти (1–${EXAM.matchLeft}) і ${EXAM.matchRight} варіантів (${EXAM.letters[0]}–${EXAM.letters.at(-1)}), сітка як у бланку НМТ: у кожному рядку обрати одну клітинку`,
+    answerHint:
+      "сітка як у бланку: у кожному рядку обрати одну клітинку; варіанти не перемішуються",
     example: `- type: match
   level: 2
   tag: classify
   q: Установіть відповідність між числом (1–3) та **найменшою** множиною (А–Д), якій воно належить.
-  left: ['$\\sqrt{49}$', '$-\\frac{18}{6}$', '$0{,}(4)$'] # рівно ${EXAM.matchLeft}
-  right: ['$\\N$ — натуральні', '$\\Z$ — цілі', '$\\Q$ — раціональні', '$\\I$ — ірраціональні', '$\\R$ — дійсні'] # рівно ${EXAM.matchRight}, не перемішуються
+  left: ['$\\sqrt{49}$', '$-\\frac{18}{6}$', '$0{,}(4)$'] # стільки, скільки пунктів у профілі
+  right: ['$\\N$ — натуральні', '$\\Z$ — цілі', '$\\Q$ — раціональні', '$\\I$ — ірраціональні', '$\\R$ — дійсні']
   answer: [0, 1, 2] # answer[i] — індекс у right для left[i]; усі різні
   why: '$\\sqrt{49} = 7 \\in \\N$; $-\\frac{18}{6} = -3 \\in \\Z$; $0{,}(4) = \\frac49 \\in \\Q$.'`,
   },
@@ -71,8 +65,8 @@ export const match = {
   invalidReason: () => null,
   isCorrect: (question, draft) =>
     question.answer.every((column, row) => draft.match[row] === column),
-  answerHtml: (question) =>
-    question.answer.map((column, row) => `${row + 1}–${EXAM.letters[column]}`).join(", "),
+  answerHtml: (question, _order, { letters }) =>
+    question.answer.map((column, row) => `${row + 1}–${letters[column]}`).join(", "),
   correctDraft: (question) => ({ type: "match", match: [...question.answer] }),
   // відповіді різні, тож після зсуву на один кожен рядок хибний
   wrongDraft: (question) => ({

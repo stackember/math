@@ -4,10 +4,17 @@ import { cn } from "@/shared/lib/utils"
 import { Alert, AlertDescription, AlertTitle } from "@/shared/ui/alert"
 
 import { answerHtml } from "../model/answer-text"
+import type { ExamProfile } from "../model/exam/profile"
 import type { Step } from "../model/session"
 import { Html } from "./shared"
 
-export function Feedback({ step, correct }: { step: Step; correct: boolean }) {
+interface Props {
+  step: Step
+  profile: ExamProfile
+  correct: boolean
+}
+
+export function Feedback({ step, profile, correct }: Props) {
   return (
     <Alert
       className={cn(
@@ -25,7 +32,7 @@ export function Feedback({ step, correct }: { step: Step; correct: boolean }) {
           "Правильно"
         ) : (
           <>
-            Неправильно. Відповідь: <Html html={answerHtml(step)} />
+            Неправильно. Відповідь: <Html html={answerHtml(step, profile)} />
           </>
         )}
       </AlertTitle>

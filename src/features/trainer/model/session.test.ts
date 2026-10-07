@@ -17,7 +17,7 @@ import {
 } from "./session"
 
 const short: RenderedQuestion = {
-  id: 0,
+  index: 0,
   type: "short",
   level: 2,
   tag: "b",
@@ -26,7 +26,7 @@ const short: RenderedQuestion = {
   answer: 4,
 }
 const choice: RenderedQuestion = {
-  id: 1,
+  index: 1,
   type: "choice",
   level: 1,
   tag: "a",
@@ -37,7 +37,7 @@ const choice: RenderedQuestion = {
   keepOrder: true,
 }
 const match: RenderedQuestion = {
-  id: 2,
+  index: 2,
   type: "match",
   level: 1,
   tag: "a",
@@ -61,7 +61,7 @@ const type = (value: string): Action => ({
 describe("session", () => {
   it("починає з легких і не чіпає порядок при keepOrder", () => {
     const session = createSession([short, choice], "full")
-    expect(currentStep(session).question.id).toBe(1)
+    expect(currentStep(session).question.index).toBe(1)
     expect(currentStep(session).order).toEqual([0, 1, 2, 3, 4])
   })
 
@@ -83,7 +83,7 @@ describe("session", () => {
     s = run(s, { type: "next" }, type("5"), { type: "check" }, { type: "next" })
     expect(isFinished(s)).toBe(true)
     expect(score(s)).toBe(1)
-    expect(wrongQuestions(s).map((q) => q.id)).toEqual([0])
+    expect(wrongQuestions(s).map((q) => q.index)).toEqual([0])
     expect(tagStats(s).get("b")).toEqual({ correct: 0, total: 1 })
   })
 

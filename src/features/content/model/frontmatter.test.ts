@@ -40,19 +40,19 @@ const validate = (path: string, data: unknown, source = FRONTMATTER_ONLY) =>
 
 describe("frontmatterSchema", () => {
   it("теорія без тренажера проходить", async () => {
-    const result = await validate("content/numbers/modulus/index.mdx", page)
+    const result = await validate("content/math/numbers/modulus/index.mdx", page)
     expect(result.issues).toBeUndefined()
   })
 
   it("тренажер у теорії — помилка українською", async () => {
-    const result = await validate("content/numbers/modulus/index.mdx", { ...page, trainer })
+    const result = await validate("content/math/numbers/modulus/index.mdx", { ...page, trainer })
     expect(result.issues?.map((i) => i.message)).toEqual([
       "блок trainer можна описувати лише у файлі practice.mdx",
     ])
   })
 
   it("практика без тренажера — помилка українською", async () => {
-    const result = await validate("content/numbers/modulus/practice.mdx", page)
+    const result = await validate("content/math/numbers/modulus/practice.mdx", page)
     expect(result.issues?.map((i) => i.message)).toEqual([
       "немає блоку trainer: у practice.mdx тренажер обов'язковий",
     ])
@@ -60,18 +60,18 @@ describe("frontmatterSchema", () => {
 
   it("практика з текстом під frontmatter — помилка: практика це лише тренажер", async () => {
     const source = "---\ntitle: x\n---\n\n## Коротко про головне\n\n- правило\n"
-    const result = await validate("content/numbers/modulus/practice.mdx", { ...page, trainer }, source)
+    const result = await validate("content/math/numbers/modulus/practice.mdx", { ...page, trainer }, source)
     expect(result.issues?.map((i) => i.message)).toEqual([
       "practice.mdx — лише frontmatter: практика це тільки тренажер, правила пиши на сторінці теорії",
     ])
   })
 
   it("практика з тренажером: формули відрендерено в HTML під час перевірки", async () => {
-    const result = await validate("content/numbers/modulus/practice.mdx", { ...page, trainer })
+    const result = await validate("content/math/numbers/modulus/practice.mdx", { ...page, trainer })
     expect(result.issues).toBeUndefined()
-    const value = (result as { value: { trainer: { tags: Record<string, string>; questions: { q: string; id: number }[] } } }).value
+    const value = (result as { value: { trainer: { tags: Record<string, string>; questions: { q: string; index: number }[] } } }).value
     expect(value.trainer.tags.b).toContain('class="katex"')
     expect(value.trainer.questions[7].q).toContain('class="katex"')
-    expect(value.trainer.questions.map((q) => q.id)).toEqual([...Array(10).keys()])
+    expect(value.trainer.questions.map((q) => q.index)).toEqual([...Array(10).keys()])
   })
 })

@@ -90,22 +90,24 @@ function Summary({ overview, topics }: { overview: Overview; topics: TopicInfo[]
   )
 }
 
+interface Props {
+  topics: TopicInfo[]
+  /** Ключ прогресу змішаного тесту профілю предмета. */
+  mixedId: string
+}
+
 /** Сторінка «Прогрес»: зведення зі сховища браузера — тому лише після монтування. */
-export function ProgressOverview({ topics }: { topics: TopicInfo[] }) {
+export function ProgressOverview(props: Props) {
   const mounted = useMounted()
   return (
     <div className="not-prose mt-8 space-y-4">
-      {mounted ? (
-        <Loaded topics={topics} />
-      ) : (
-        <p className="text-muted-foreground">Читаємо прогрес…</p>
-      )}
+      {mounted ? <Loaded {...props} /> : <p className="text-muted-foreground">Читаємо прогрес…</p>}
     </div>
   )
 }
 
-function Loaded({ topics }: { topics: TopicInfo[] }) {
-  const overview = useProgressOverview(topics)
+function Loaded({ topics, mixedId }: Props) {
+  const overview = useProgressOverview(topics, mixedId)
   if (topics.length === 0) {
     return <p className="text-muted-foreground">Поки немає жодної практики.</p>
   }

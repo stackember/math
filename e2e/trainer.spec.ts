@@ -4,15 +4,16 @@ import type { Question } from "@/features/trainer/model/question/registry"
 
 import { answerer, card, option, shortInput } from "./answers"
 import {
-  PRACTICE_URL_BY_SLUG,
+  PRACTICE_URL_BY_TOPIC,
   PRACTICE_URLS,
   practiceQuestions,
   REFERENCE_PRACTICE_URLS,
+  SUBJECT,
   topicTitle,
 } from "./content"
 
 /** Еталонний тренажер для перевірки клавіатури, повторення помилок і окремих типів. */
-const REFERENCE = "/numbers/number-sets/practice"
+const REFERENCE = `/${SUBJECT}/numbers/number-sets/practice`
 
 /** Збирає помилки сторінки: гідрація, дві копії React тощо мають валити тест. */
 function collectErrors(page: Page) {
@@ -97,10 +98,10 @@ for (const url of FULL_RUN) {
     ).toBeVisible()
 
     // сторінка прогресу бачить той самий запис: тема, результат, правила
-    const [area, slug] = url.split("/").filter(Boolean)
-    await page.goto("/progress")
-    const topic = page.locator(`[data-topic="${slug}"]`)
-    await expect(topic.getByRole("link", { name: topicTitle(area, slug) })).toBeVisible()
+    const [subject, area, slug] = url.split("/").filter(Boolean)
+    await page.goto(`/${subject}/progress`)
+    const topic = page.locator(`[data-topic="${subject}/${slug}"]`)
+    await expect(topic.getByRole("link", { name: topicTitle(subject, area, slug) })).toBeVisible()
     await expect(topic).toContainText(`Найкращий результат: ${total}/${total}`)
     await expect(topic).toContainText("проходів: 1")
     await expect(topic.getByRole("list")).toBeVisible()
@@ -110,17 +111,17 @@ for (const url of FULL_RUN) {
 
 test("змішаний тест: завдання з практик, результат і власний рекорд", async ({ page }) => {
   const errors = collectErrors(page)
-  const total = await openTrainer(page, "/test")
+  const total = await openTrainer(page, `/${SUBJECT}/test`)
   expect(total).toBeGreaterThan(0)
   await expect(card(page).getByRole("button", { name: "Інший набір" })).toHaveCount(0)
   await expect(page.getByRole("button", { name: "Інший набір" })).toBeVisible()
 
   for (let i = 1; i <= total; i++) {
     await expect(card(page)).toContainText(`Завдання ${i} / ${total}`)
-    const slug = await card(page).getAttribute("data-topic")
-    const id = await card(page).getAttribute("data-question")
-    const question = practiceQuestions(PRACTICE_URL_BY_SLUG[slug ?? ""])[Number(id)]
-    if (!question) throw new Error(`невідоме завдання ${slug}/${id}`)
+    const topic = await card(page).getAttribute("data-topic")
+    const index = await card(page).getAttribute("data-question")
+    const question = practiceQuestions(PRACTICE_URL_BY_TOPIC[topic ?? ""])[Number(index)]
+    if (!question) throw new Error(`невідоме завдання ${topic}/${index}`)
     await answerer(question).correct(page, question)
     await button(page, "Перевірити").click()
     await expect(verdict(page)).toHaveText("Правильно")
@@ -134,7 +135,7 @@ test("змішаний тест: завдання з практик, резул�
   await expect(
     page.getByText(`Найкращий результат: ${total}/${total} · останній: ${total}/${total}`)
   ).toBeVisible()
-  await page.goto("/progress")
+  await page.goto(`/${SUBJECT}/progress`)
   await expect(page.getByText(`Змішаний тест — найкращий: ${total}/${total}`)).toBeVisible()
   expect(errors).toEqual([])
 })

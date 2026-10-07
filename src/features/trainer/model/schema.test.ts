@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest"
 
+import { DEFAULT_PROFILE } from "./exam/registry"
 import { trainerSchema } from "./schema"
+
+const schema = trainerSchema(DEFAULT_PROFILE)
 
 const choice = (n: number, level: 1 | 2 | 3, extra = {}) => ({
   type: "choice",
@@ -42,7 +45,7 @@ function validTrainer() {
 }
 
 const messages = (data: unknown) => {
-  const result = trainerSchema.safeParse(data)
+  const result = schema.safeParse(data)
   return result.success ? [] : result.error.issues.map((i) => i.message)
 }
 
@@ -102,7 +105,7 @@ describe("trainerSchema", () => {
     expect(result).toContain("має бути рівно 5 варіантів")
     expect(result).toContain("відповіді у відповідності мають бути різними")
     expect(result).toContain("answer: ціле число або десятковий дріб до 4 знаків після коми")
-    expect(result).toContain("level: 1 (легке), 2 (рівень НМТ) або 3 (пастка)")
+    expect(result).toContain("level: 1 (легке), 2 (рівень іспиту) або 3 (пастка)")
   })
 
   it("ловить дублікати у відповідності й незнайомі поля", () => {

@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest"
 import { checkMdx, checkStructure } from "./check-content"
 
 const theory = (body: string, fm = "title: Тема\ndescription: Опис") =>
-  checkMdx("content/numbers/topic/index.mdx", `---\n${fm}\n---\n\n${body}`)
+  checkMdx("content/math/numbers/topic/index.mdx", `---\n${fm}\n---\n\n${body}`)
 
 const messages = async (p: Promise<{ message: string; line?: number }[]>) =>
   (await p).map((x) => `${x.line ?? "-"}: ${x.message}`)

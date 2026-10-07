@@ -4,15 +4,16 @@ import { dirname, extname, relative, resolve } from "node:path"
 import { pageSchema } from "fumadocs-core/source/schema"
 import { z } from "zod"
 
+import type { ExamProfile } from "@/features/trainer/model/exam/profile"
 import { renderTrainer } from "@/features/trainer/model/render"
 import { trainerSchema } from "@/features/trainer/model/schema"
 import { createMarkdown } from "@/shared/lib/markdown"
 
+import { profileOfSubject } from "./subject"
 import { CONTENT_DIR, topicPage } from "./topic"
 
-/** Файл практики за угодою з topic.ts; шлях від fumadocs-mdx може бути абсолютним або від кореня. */
-const isPracticeFile = (path: string) =>
-  topicPage(relative(resolve(CONTENT_DIR), resolve(path)))?.kind === "practice"
+/** Шлях від fumadocs-mdx може бути абсолютним або від кореня — угода в topic.ts хоче відносно content/. */
+const inContent = (path: string) => relative(resolve(CONTENT_DIR), resolve(path))
 
 /** Тіло MDX після frontmatter (порожній рядок, якщо файл — лише frontmatter). */
 const bodyOf = (source: string) => source.replace(/^---\r?\n[\s\S]*?\r?\n---/, "").trim()
@@ -43,15 +44,15 @@ const theorySchema = pageSchema.extend({
 })
 
 /**
- * Практика: тренажер обов'язковий, а тексту під frontmatter немає — практика це лише тренажер,
- * правила належать сторінці теорії. Після перевірки складу формули, Markdown і рисунки завдань
- * рендеряться в HTML тут же, під час збирання — у браузер іде готовий HTML, KaTeX там не потрібен.
+ * Практика: тренажер обов'язковий за профілем іспиту предмета, а тексту під frontmatter немає —
+ * практика це лише тренажер, правила належать сторінці теорії. Після перевірки складу формули,
+ * Markdown і рисунки рендеряться в HTML тут же, під час збирання.
  */
-const practiceSchema = (file: string, source: string) =>
+const practiceSchema = (file: string, source: string, profile: ExamProfile) =>
   pageSchema
     .extend({
-      trainer: trainerSchema.transform((trainer) =>
-        renderTrainer(trainer, { md, readAsset: assetReader(file) })
+      trainer: trainerSchema(profile).transform((trainer) =>
+        renderTrainer(trainer, { md, profile, readAsset: assetReader(file) })
       ),
     })
     .superRefine((_, ctx) => {
@@ -65,8 +66,12 @@ const practiceSchema = (file: string, source: string) =>
     })
 
 /**
- * Схема frontmatter залежить від імені файлу: fumadocs-mdx викликає цю функцію
- * для кожного документа зі шляхом до нього і його текстом. Помилки — під час збирання, українською.
+ * Схема frontmatter залежить від файлу: fumadocs-mdx викликає цю функцію для кожного документа
+ * зі шляхом і текстом. Помилки — під час збирання, українською.
  */
-export const frontmatterSchema = ({ path, source }: { path: string; source: string }) =>
-  isPracticeFile(path) ? practiceSchema(path, source) : theorySchema
+export const frontmatterSchema = ({ path, source }: { path: string; source: string }) => {
+  const page = topicPage(inContent(path))
+  return page?.kind === "practice"
+    ? practiceSchema(path, source, profileOfSubject(page.topic.subject))
+    : theorySchema
+}

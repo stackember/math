@@ -3,19 +3,20 @@ import "./global.css"
 
 import { DocsLayout } from "fumadocs-ui/layouts/docs"
 import { RootProvider } from "fumadocs-ui/provider/next"
-import { Sigma } from "lucide-react"
+import { GraduationCap } from "lucide-react"
 import type { Metadata } from "next"
 import { Inter } from "next/font/google"
 
 import { source } from "@/features/content/model/source"
 import { translations } from "@/shared/lib/i18n"
-import { EXAM } from "@/features/trainer/model/exam"
+
+import { SITE } from "./site"
 
 const inter = Inter({ subsets: ["latin", "cyrillic"] })
 
 export const metadata: Metadata = {
-  title: { default: EXAM.siteTitle, template: EXAM.titleTemplate },
-  description: EXAM.siteDescription,
+  title: { default: SITE.name, template: SITE.titleTemplate },
+  description: SITE.description,
 }
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
@@ -28,8 +29,8 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
             nav={{
               title: (
                 <>
-                  <Sigma className="size-5" aria-hidden />
-                  {EXAM.siteTitle}
+                  <GraduationCap className="size-5" aria-hidden />
+                  {SITE.name}
                 </>
               ),
             }}

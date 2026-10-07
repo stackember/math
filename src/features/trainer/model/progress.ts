@@ -42,10 +42,19 @@ export const ATTEMPTS_KEPT = 20
 
 export const EMPTY_PROGRESS: Progress = { version: 3, attempts: [], tags: {} }
 
-/** Ключ результатів тренажера: `trainer:<slug теми>` — не залежить від адреси сторінки. */
+/** Ключ результатів: `trainer:<предмет>/<slug теми>` або `trainer:mixed/<профіль>` — не залежить від адреси. */
 const key = (trainerId: string) => `trainer:${trainerId}`
-/** Ключ до переїзду сторінок (content/practice/<slug>): читається, якщо за новим ще нічого немає. */
-const legacyKey = (trainerId: string) => `trainer:practice/${trainerId}`
+
+/**
+ * Ключі до появи предметів (єдиним предметом була математика з профілем nmt-math):
+ * `trainer:<slug>`, ще раніше `trainer:practice/<slug>`, змішаний — `trainer:mixed`.
+ * Читаються, якщо за новим ключем ще нічого немає.
+ */
+function legacyKeys(trainerId: string): string[] {
+  if (trainerId === "mixed/nmt-math") return ["trainer:mixed"]
+  const slug = trainerId.startsWith("math/") ? trainerId.slice("math/".length) : null
+  return slug ? [`trainer:${slug}`, `trainer:practice/${slug}`] : []
+}
 
 /** Версія 1 (без поля `version`): лише best і last. Версія 2: ще `tags`, без історії проходів. */
 type Stored = Partial<Progress> & { version?: 2 | 3 }
@@ -86,7 +95,13 @@ export function createProgressStore(
     }
   }
 
-  const load = (trainerId: string) => migrate(read(key(trainerId)) ?? read(legacyKey(trainerId)))
+  const load = (trainerId: string) =>
+    migrate(
+      [key(trainerId), ...legacyKeys(trainerId)].reduce<unknown>(
+        (found, k) => found ?? read(k),
+        null
+      )
+    )
 
   return {
     load,

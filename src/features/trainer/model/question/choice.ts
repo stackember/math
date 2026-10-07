@@ -1,30 +1,27 @@
 import { z } from "zod"
 
-import { EXAM } from "../exam"
+import type { ExamProfile } from "../exam/profile"
 import { shuffle } from "../order"
-import { common, positionalOptionProblems, text, type QuestionModule } from "./base"
+import { common, positionalOptionProblems, text, uniqueIssue, type QuestionModule } from "./base"
 
-/** Вибір однієї відповіді з варіантів А–Д. */
-const schema = z
-  .strictObject({
-    type: z.literal("choice"),
-    ...common,
-    options: z.array(text).length(EXAM.choiceOptions, {
-      error: `має бути рівно ${EXAM.choiceOptions} варіантів`,
-    }),
-    /** Індекс правильного варіанта в `options`, з 0. */
-    answer: z
-      .int({ error: "answer: індекс правильного варіанта, з 0" })
-      .min(0, { error: "answer: індекс з 0" })
-      .max(EXAM.choiceOptions - 1, { error: `answer: від 0 до ${EXAM.choiceOptions - 1}` }),
-    /** Не перемішувати варіанти (напр. числа за зростанням). */
-    keepOrder: z.boolean().default(false),
-  })
-  .superRefine((question, ctx) => {
-    if (new Set(question.options).size !== question.options.length) {
-      ctx.addIssue({ code: "custom", path: ["options"], message: "варіанти повторюються" })
-    }
-  })
+/** Вибір однієї відповіді з варіантів А–Д (кількість — з профілю іспиту). */
+const schema = ({ letters }: ExamProfile) => {
+  const n = letters.length
+  return z
+    .strictObject({
+      type: z.literal("choice"),
+      ...common,
+      options: z.array(text).length(n, { error: `має бути рівно ${n} варіантів` }),
+      /** Індекс правильного варіанта в `options`, з 0. */
+      answer: z
+        .int({ error: "answer: індекс правильного варіанта, з 0" })
+        .min(0, { error: "answer: індекс з 0" })
+        .max(n - 1, { error: `answer: від 0 до ${n - 1}` }),
+      /** Не перемішувати варіанти (напр. числа за зростанням). */
+      keepOrder: z.boolean().default(false),
+    })
+    .superRefine((q, ctx) => uniqueIssue(ctx, q.options, "options", "варіанти повторюються"))
+}
 
 export interface ChoiceDraft {
   type: "choice"
@@ -40,7 +37,7 @@ export const choice = {
   schema,
   meta: {
     label: "вибір однієї відповіді",
-    answerHint: `${EXAM.choiceOptions} варіантів ${EXAM.letters[0]}–${EXAM.letters.at(-1)}, правильний один: клік по варіанту або цифра 1–${EXAM.choiceOptions}`,
+    answerHint: "клік по варіанту або цифра з його номером",
     example: `- type: choice
   level: 1
   tag: classify
@@ -61,8 +58,8 @@ export const choice = {
   isAnswered: (draft) => draft.choice !== null,
   invalidReason: () => null,
   isCorrect: (question, draft) => draft.choice === question.answer,
-  answerHtml: (question, order) =>
-    `${EXAM.letters[order.indexOf(question.answer)]}) ${question.options[question.answer]}`,
+  answerHtml: (question, order, { letters }) =>
+    `${letters[order.indexOf(question.answer)]}) ${question.options[question.answer]}`,
   correctDraft: (question) => ({ type: "choice", choice: question.answer }),
   wrongDraft: (question) => ({
     type: "choice",

@@ -5,19 +5,25 @@ import { useMemo, useState } from "react"
 import { Button } from "@/shared/ui/button"
 
 import { useMounted } from "../hooks/use-mounted"
-import { composeMixed, MIXED_ID, type MixedSource } from "../model/mixed"
+import type { ExamProfile } from "../model/exam/profile"
+import { composeMixed, mixedId, type MixedSource } from "../model/mixed"
 import { TrainerCard } from "./trainer-card"
 
+interface Props {
+  sources: MixedSource[]
+  profile: ExamProfile
+}
+
 /**
- * Змішаний тест: набір складається в браузері після гідрації (випадковий вибір з усіх практик),
- * «Інший набір» складає новий. Прогрес — під власним ключем, окремо від тем.
+ * Змішаний тест: набір складається в браузері після гідрації (випадковий вибір з усіх практик
+ * профілю), «Інший набір» складає новий. Прогрес — під ключем профілю, окремо від тем.
  */
-export function MixedTrainer({ sources }: { sources: MixedSource[] }) {
+export function MixedTrainer({ sources, profile }: Props) {
   const mounted = useMounted()
   const [seed, setSeed] = useState(0)
   // seed у залежностях — щоб кнопка «Інший набір» перескладала тест
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  const trainer = useMemo(() => composeMixed(sources), [sources, seed])
+  const trainer = useMemo(() => composeMixed(sources, profile), [sources, profile, seed])
   const topics = new Set(trainer.questions.map((q) => q.topic)).size
 
   if (!mounted) return <p className="text-muted-foreground">Складаємо тест…</p>
@@ -39,7 +45,7 @@ export function MixedTrainer({ sources }: { sources: MixedSource[] }) {
           Інший набір
         </Button>
       </div>
-      <TrainerCard key={seed} trainer={trainer} trainerId={MIXED_ID} />
+      <TrainerCard key={seed} trainer={trainer} trainerId={mixedId(profile.id)} />
     </div>
   )
 }

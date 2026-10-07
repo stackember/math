@@ -1,5 +1,6 @@
 import type { Markdown } from "@/shared/lib/markdown"
 
+import type { ExamProfile } from "./exam/profile"
 import { moduleOf, type Question, type RenderedQuestion } from "./question/registry"
 import type { RenderedTrainer, TrainerData } from "./schema"
 
@@ -10,6 +11,7 @@ interface Asset {
 
 export interface RenderOptions {
   md: Markdown
+  profile: ExamProfile
   /** Читає файл рисунка за шляхом з frontmatter (відносно папки теми). Лише під час збирання. */
   readAsset(src: string): Promise<Asset>
 }
@@ -28,13 +30,13 @@ async function figureHtml(
 
 async function renderQuestion(
   question: Question,
-  id: number,
+  index: number,
   { md, readAsset }: RenderOptions
 ): Promise<RenderedQuestion> {
   const own = await moduleOf(question).render(question, md)
   return {
     ...own,
-    id,
+    index,
     q: await md.block(question.q),
     why: await md.block(question.why),
     ...(question.figure ? { figureHtml: await figureHtml(question.figure, readAsset) } : {}),
@@ -55,6 +57,7 @@ export async function renderTrainer(
     )
   )
   return {
+    exam: options.profile.id,
     tags: Object.fromEntries(tags),
     questions: await Promise.all(trainer.questions.map((q, i) => renderQuestion(q, i, options))),
   }

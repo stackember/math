@@ -9,6 +9,7 @@ import {
   practiceFile,
   slugsOfUrl,
   theoryFile,
+  topicId,
   topicOf,
   urlOf,
 } from "@/features/content/model/topic"
@@ -26,20 +27,26 @@ export const CONTENT_URLS = FILES.map(urlOf)
 /** Адреси всіх практик: numbers/number-sets/practice.mdx → /numbers/number-sets/practice. */
 export const PRACTICE_URLS = CONTENT_URLS.filter(isPracticeUrl)
 
-/** Сторінки поза контентом (маршрути в src/app/): змішаний тест і прогрес. */
-export const EXTRA_URLS = ["/test", "/progress"]
+/** Еталонний предмет для сценаріїв, що потребують конкретного контенту. */
+export const SUBJECT = "math"
+
+/** Сторінки предмета поза контентом (маршрути src/app/[subject]/…): змішаний тест і прогрес. */
+export const EXTRA_URLS = [`/${SUBJECT}/test`, `/${SUBJECT}/progress`]
 
 /** Сторінки, де тренажер вантажиться лише в браузері — чекати картку перед вимірами. */
-export const TRAINER_URLS = [...PRACTICE_URLS, "/test"]
+export const TRAINER_URLS = [...PRACTICE_URLS, `/${SUBJECT}/test`]
 
-/** Практика за slug теми — для змішаного тесту, де картка несе `data-topic`. */
-export const PRACTICE_URL_BY_SLUG = Object.fromEntries(
-  PRACTICE_URLS.map((url) => [topicOf(slugsOfUrl(url))?.slug ?? "", url])
+/** Практика за id теми `<предмет>/<slug>` — для змішаного тесту, де картка несе `data-topic`. */
+export const PRACTICE_URL_BY_TOPIC = Object.fromEntries(
+  PRACTICE_URLS.map((url) => {
+    const topic = topicOf(slugsOfUrl(url))
+    return [topic ? topicId(topic) : "", url]
+  })
 )
 
 /** Порядок тем розділу «Числа» з його meta.json — для перевірки меню. */
 export const NUMBERS_ORDER = (
-  JSON.parse(readFileSync(new URL("numbers/meta.json", CONTENT_DIR), "utf8")) as {
+  JSON.parse(readFileSync(new URL(`${SUBJECT}/numbers/meta.json`, CONTENT_DIR), "utf8")) as {
     pages: string[]
   }
 ).pages.filter((slug) => slug !== "...")
@@ -52,8 +59,8 @@ const frontmatterOf = (file: string) => {
 }
 
 /** Назва теми з frontmatter її теорії — так вона підписана в меню. */
-export function topicTitle(area: string, slug: string): string {
-  return frontmatterOf(theoryFile({ area, slug })).title as string
+export function topicTitle(subject: string, area: string, slug: string): string {
+  return frontmatterOf(theoryFile({ subject, area, slug })).title as string
 }
 
 const topicOfUrl = (url: string) => {

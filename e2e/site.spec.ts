@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test"
 
-import { CONTENT_URLS, EXTRA_URLS, NUMBERS_ORDER, topicTitle } from "./content"
+import { CONTENT_URLS, EXTRA_URLS, NUMBERS_ORDER, SUBJECT, topicTitle } from "./content"
 
 // нові теми й практики потрапляють у цю перевірку самі
 for (const url of [...CONTENT_URLS, ...EXTRA_URLS]) {
@@ -29,10 +29,14 @@ const sidebarLabels = (page: import("@playwright/test").Page) =>
 test("меню: теми в порядку meta.json розділу", async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== "desktop", "на телефоні меню сховане в шухляді")
   await page.goto("/")
-  await expect(page).toHaveTitle("Математика · НМТ")
+  await expect(page).toHaveTitle("Теорія і практика")
 
+  // меню предмета — на його сторінках
+  await page.goto(`/${SUBJECT}`)
   const labels = await sidebarLabels(page)
-  const positions = NUMBERS_ORDER.map((slug) => labels.indexOf(topicTitle("numbers", slug)))
+  const positions = NUMBERS_ORDER.map((slug) =>
+    labels.indexOf(topicTitle(SUBJECT, "numbers", slug))
+  )
   expect(positions.every((p) => p >= 0)).toBe(true)
   expect([...positions].sort((a, b) => a - b)).toEqual(positions)
 
@@ -44,42 +48,44 @@ test("меню: теми в порядку meta.json розділу", async ({ p
 
 test("меню: тема з практикою розгортається в «Теорія» і «Практика»", async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== "desktop", "на телефоні меню сховане в шухляді")
-  await page.goto("/numbers/number-sets")
+  await page.goto(`/${SUBJECT}/numbers/number-sets`)
 
   const sidebar = page.locator("#nd-sidebar")
   // назва теми — кнопка, що розгортає, а не посилання на теорію
   await expect(sidebar.getByRole("button", { name: "Числові множини" })).toBeVisible()
-  await expect(sidebar.locator('a[href="/numbers/number-sets"]')).toHaveText("Теорія")
-  await expect(sidebar.locator('a[href="/numbers/number-sets/practice"]')).toHaveText("Практика")
+  await expect(sidebar.locator(`a[href="/${SUBJECT}/numbers/number-sets"]`)).toHaveText("Теорія")
+  await expect(sidebar.locator(`a[href="/${SUBJECT}/numbers/number-sets/practice"]`)).toHaveText(
+    "Практика"
+  )
 
   const labels = await sidebarLabels(page)
   const topic = labels.indexOf("Числові множини")
   expect(labels.slice(topic, topic + 3)).toEqual(["Числові множини", "Теорія", "Практика"])
 
   // згорнута тема ховає свої сторінки, а поточна — розгорнута сама
-  await page.goto("/numbers/modulus")
-  await expect(sidebar.locator('a[href="/numbers/number-sets/practice"]')).toHaveCount(0)
+  await page.goto(`/${SUBJECT}/numbers/modulus`)
+  await expect(sidebar.locator(`a[href="/${SUBJECT}/numbers/number-sets/practice"]`)).toHaveCount(0)
 })
 
 test("футер «‹ ›» показує повні назви сусідніх сторінок, а не «Теорія»", async ({ page }) => {
-  await page.goto("/numbers/number-sets")
+  await page.goto(`/${SUBJECT}/numbers/number-sets`)
   const footer = page.locator("#nd-page").getByRole("link", { name: /Практика: числові множини/ })
-  await expect(footer).toHaveAttribute("href", "/numbers/number-sets/practice")
+  await expect(footer).toHaveAttribute("href", `/${SUBJECT}/numbers/number-sets/practice`)
 
-  await page.goto("/numbers/number-sets/practice")
+  await page.goto(`/${SUBJECT}/numbers/number-sets/practice`)
   await expect(
     page.locator("#nd-page").getByRole("link", { name: /^Числові множини/ })
-  ).toHaveAttribute("href", "/numbers/number-sets")
+  ).toHaveAttribute("href", `/${SUBJECT}/numbers/number-sets`)
 })
 
 test("теорія: формули без помилок і перехід до практики", async ({ page }) => {
-  await page.goto("/numbers/number-sets")
+  await page.goto(`/${SUBJECT}/numbers/number-sets`)
   await expect(page.getByRole("heading", { level: 1, name: "Числові множини" })).toBeVisible()
   expect(await page.locator(".katex").count()).toBeGreaterThan(50)
   await expect(page.locator(".katex-error")).toHaveCount(0)
 
   await page.locator("#nd-page").getByRole("link", { name: "Практика", exact: true }).click()
-  await expect(page).toHaveURL("/numbers/number-sets/practice")
+  await expect(page).toHaveURL(`/${SUBJECT}/numbers/number-sets/practice`)
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("Практика: числові множини")
   await expect(
     page.locator("#nd-page").getByRole("link", { name: "Теорія", exact: true })
@@ -87,7 +93,7 @@ test("теорія: формули без помилок і перехід до 
 })
 
 test("тема без практики не має кнопки «Практика»", async ({ page }) => {
-  await page.goto("/numbers/modulus")
+  await page.goto(`/${SUBJECT}/numbers/modulus`)
   await expect(page.getByRole("heading", { level: 1, name: "Модуль числа" })).toBeVisible()
   await expect(
     page.locator("#nd-page").getByRole("link", { name: "Практика", exact: true })
@@ -99,7 +105,9 @@ test("пошук українською з читабельними формул
     url: string
     content: string
   }[]
-  expect(results.map((r) => r.url).some((url) => url.startsWith("/numbers/integers"))).toBe(true)
+  expect(
+    results.map((r) => r.url).some((url) => url.startsWith(`/${SUBJECT}/numbers/integers`))
+  ).toBe(true)
   expect(results.some((r) => r.content.includes("5 · (−4)"))).toBe(true)
   expect(results.some((r) => r.content.includes("\\cdot"))).toBe(false)
 
@@ -115,7 +123,7 @@ test("пошук українською з читабельними формул
 })
 
 test("неіснуюча сторінка — 404 українською", async ({ page }) => {
-  const response = await page.goto("/numbers/does-not-exist")
+  const response = await page.goto(`/${SUBJECT}/numbers/does-not-exist`)
   expect(response?.status()).toBe(404)
   await expect(page.getByRole("heading", { name: "Сторінку не знайдено" })).toBeVisible()
 })

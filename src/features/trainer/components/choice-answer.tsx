@@ -4,7 +4,7 @@ import { RadioGroup } from "@/shared/ui/radio-group"
 
 import { select } from "../model/question/choice"
 import { OptionLetter, optionRowClass } from "./option-row"
-import { Html, LETTERS, type AnswerProps, type Mark } from "./shared"
+import { Html, type AnswerProps, type Mark } from "./shared"
 
 function markOf(option: number, { question, draft, checked }: AnswerProps<"choice">): Mark {
   if (!checked) return option === draft.choice ? "selected" : "idle"
@@ -13,12 +13,12 @@ function markOf(option: number, { question, draft, checked }: AnswerProps<"choic
 }
 
 /**
- * Варіанти А–Д як група радіокнопок (Base UI): стрілки й пробіл працюють самі.
+ * Варіанти як група радіокнопок (Base UI): стрілки й пробіл працюють самі.
  * Після перевірки група лише для читання: видно, що обрано й де правильна відповідь.
  * `data-option` — індекс варіанта у frontmatter, `data-mark` — стан (для e2e, незалежно від перемішування).
  */
 export function ChoiceAnswer(props: AnswerProps<"choice">) {
-  const { question, order, draft, checked, onAnswer } = props
+  const { question, order, draft, profile, checked, onAnswer } = props
   return (
     <RadioGroup
       aria-label="Варіанти відповіді"
@@ -37,7 +37,7 @@ export function ChoiceAnswer(props: AnswerProps<"choice">) {
             data-mark={mark}
             className={optionRowClass(mark)}
           >
-            <OptionLetter letter={LETTERS[position]} mark={mark} />
+            <OptionLetter letter={profile.letters[position]} mark={mark} />
             <Html html={question.options[option]} />
           </Radio.Root>
         )

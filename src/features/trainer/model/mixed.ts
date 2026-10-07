@@ -1,25 +1,25 @@
-import { EXAM } from "./exam"
+import type { ExamProfile } from "./exam/profile"
 import { shuffle } from "./order"
-import type { Question, RenderedQuestion } from "./question/registry"
+import type { RenderedQuestion } from "./question/registry"
 import type { RenderedTrainer } from "./schema"
 
-/** Ключ прогресу змішаного тесту — поруч із темами (`trainer:mixed`). */
-export const MIXED_ID = "mixed"
+/** Ключ прогресу змішаного тесту — за профілем іспиту, бо тест збирається з усіх предметів профілю. */
+export const mixedId = (profileId: string) => `mixed/${profileId}`
 
 /** Практика однієї теми як джерело для змішаного тесту. */
 export interface MixedSource {
-  /** Slug теми — ключ прогресу й префікс глобального тегу. */
-  slug: string
+  /** Id теми `<предмет>/<slug>` — ключ прогресу й префікс глобального тегу. */
+  id: string
   title: string
   trainer: RenderedTrainer
 }
 
-/** Глобальний ключ правила: теги різних тем можуть збігатися (`classify`), тому `<slug>/<tag>`. */
-export const globalTag = (slug: string, tag: string) => `${slug}/${tag}`
+/** Глобальний ключ правила: теги різних тем можуть збігатися (`classify`), тому `<id теми>/<tag>`. */
+export const globalTag = (topicId: string, tag: string) => `${topicId}/${tag}`
 
-export function splitGlobalTag(key: string): { slug: string; tag: string } | null {
-  const i = key.indexOf("/")
-  return i === -1 ? null : { slug: key.slice(0, i), tag: key.slice(i + 1) }
+export function splitGlobalTag(key: string): { topicId: string; tag: string } | null {
+  const i = key.lastIndexOf("/")
+  return i === -1 ? null : { topicId: key.slice(0, i), tag: key.slice(i + 1) }
 }
 
 const escapeHtml = (s: string) =>
@@ -41,40 +41,42 @@ function roundRobin(questions: RenderedQuestion[], limit: number): RenderedQuest
 }
 
 /**
- * Змішаний тест з кількох тем: склад за `EXAM.mixed` (стільки завдань кожного типу, як на НМТ),
- * порівну з усіх тем, випадково; типи поза складом не беруться. Завдання лишає свій `id`
- * (індекс у практиці) і отримує `topic`, тег стає глобальним — так результати за правилами
+ * Змішаний тест: склад за `profile.mixed` (стільки завдань кожного типу, як на іспиті),
+ * порівну з усіх тем, випадково; типи поза складом не беруться. Завдання лишає свій `index`
+ * (номер у практиці) і отримує `topic`, тег стає глобальним — так результати за правилами
  * і прогрес не плутають теми. Порядок за рівнями й перемішування — у createSession.
  */
 export function composeMixed(
   sources: MixedSource[],
-  random: () => number = Math.random,
-  limits: Partial<Record<Question["type"], number>> = EXAM.mixed
+  profile: ExamProfile,
+  random: () => number = Math.random
 ): RenderedTrainer {
   const pool = sources.flatMap((source) =>
     source.trainer.questions.map((question) => ({
       ...question,
-      tag: globalTag(source.slug, question.tag),
-      topic: source.slug,
+      tag: globalTag(source.id, question.tag),
+      topic: source.id,
     }))
   )
-  const questions = Object.entries(limits).flatMap(([type, limit]) =>
-    roundRobin(
-      shuffle(
-        pool.filter((q) => q.type === type),
-        random
-      ),
-      limit
-    )
+  const questions = Object.entries(profile.mixed).flatMap(([type, limit]) =>
+    limit
+      ? roundRobin(
+          shuffle(
+            pool.filter((q) => q.type === type),
+            random
+          ),
+          limit
+        )
+      : []
   )
 
   const used = new Set(questions.map((q) => q.tag))
   const tags: RenderedTrainer["tags"] = {}
   for (const source of sources) {
     for (const [tag, label] of Object.entries(source.trainer.tags)) {
-      const key = globalTag(source.slug, tag)
+      const key = globalTag(source.id, tag)
       if (used.has(key)) tags[key] = `${escapeHtml(source.title)}: ${label}`
     }
   }
-  return { tags, questions }
+  return { exam: profile.id, tags, questions }
 }

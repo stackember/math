@@ -7,9 +7,10 @@ import { notFound } from "next/navigation"
 import { getMDXComponents } from "@/features/content/components/mdx-components"
 import { TopicSwitch } from "@/features/content/components/topic-switch"
 import { source } from "@/features/content/model/source"
-import { topicOf } from "@/features/content/model/topic"
+import { topicId, topicOf } from "@/features/content/model/topic"
 import { Trainer } from "@/features/trainer/components/trainer"
-import { EXAM } from "@/features/trainer/model/exam"
+
+import { SITE } from "../site"
 
 /**
  * Сусідні сторінки для футера «‹ ›» з повними назвами. У дереві меню теорія і практика
@@ -49,7 +50,7 @@ export default async function Page(props: PageProps<"/[[...slug]]">) {
         <MDX components={getMDXComponents({ a: createRelativeLink(source, page) })} />
         {/* Тренажер є на кожній практиці: схема frontmatter вимагає `trainer` у practice.mdx */}
         {page.data.trainer && topic && (
-          <Trainer trainer={page.data.trainer} trainerId={topic.slug} />
+          <Trainer trainer={page.data.trainer} trainerId={topicId(topic)} />
         )}
       </DocsBody>
     </DocsPage>
@@ -67,7 +68,7 @@ export async function generateMetadata(props: PageProps<"/[[...slug]]">): Promis
 
   return {
     // головна — просто назва сайту, решта — за шаблоном з layout.tsx
-    title: page.slugs.length === 0 ? { absolute: EXAM.siteTitle } : page.data.title,
+    title: page.slugs.length === 0 ? { absolute: SITE.name } : page.data.title,
     description: page.data.description,
   }
 }

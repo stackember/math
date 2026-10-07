@@ -4,8 +4,8 @@ import type { ReactNode } from "react"
 
 import { cn } from "@/shared/lib/utils"
 
-import { useDelayedClear } from "../hooks/use-delayed-clear"
-import type { SetId } from "../model/number-sets"
+import { useDelayedClear } from "../../hooks/use-delayed-clear"
+import type { SetId } from "../../model/math/number-sets"
 
 export interface DiagramItem {
   /** HTML числа (KaTeX) */

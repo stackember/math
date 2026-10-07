@@ -2,6 +2,8 @@ import { z } from "zod"
 
 import type { Markdown } from "@/shared/lib/markdown"
 
+import type { ExamProfile } from "../exam/profile"
+
 /** Непорожній текст з Markdown і формулами. */
 export const text = z
   .string({ error: "має бути текст" })
@@ -10,9 +12,14 @@ export const text = z
 
 /** Поля, спільні для всіх типів завдань. */
 export const common = {
-  /** 1 — легке, 2 — рівень НМТ, 3 — пастка. */
+  /** Стабільний ідентифікатор (kebab-case, унікальний у практиці) — для прогресу й майбутньої бази даних. */
+  id: z
+    .string()
+    .regex(/^[a-z0-9][a-z0-9-]*$/, { error: "id: латиницею в kebab-case, напр. zero-not-natural" })
+    .optional(),
+  /** 1 — легке, 2 — рівень іспиту, 3 — пастка. */
   level: z.union([z.literal(1), z.literal(2), z.literal(3)], {
-    error: "level: 1 (легке), 2 (рівень НМТ) або 3 (пастка)",
+    error: "level: 1 (легке), 2 (рівень іспиту) або 3 (пастка)",
   }),
   /** Ключ з `tags`: яке правило теми перевіряє завдання. */
   tag: z.string({ error: "tag: id правила з tags" }),
@@ -33,11 +40,11 @@ export const common = {
 
 /** Що движок додає до завдання після рендеру під час збирання. */
 export interface CommonRendered {
-  /** Стабільний id — індекс у frontmatter. */
-  id: number
+  /** Порядковий номер у практиці (з 0) — ключ картки й e2e. */
+  index: number
   /** Рисунок як HTML (`<img>` з вбудованими даними). */
   figureHtml?: string
-  /** Slug теми — лише у змішаному тесті, де завдання з різних практик. */
+  /** Id теми (`<предмет>/<slug>`) — лише у змішаному тесті, де завдання з різних практик. */
   topic?: string
 }
 
@@ -45,9 +52,9 @@ export interface CommonRendered {
 interface QuestionMeta {
   /** Коротка назва українською: «вибір відповіді». */
   label: string
-  /** Як відповідати: «клік по варіанту або цифра 1–5». */
+  /** Як відповідати — без чисел профілю, вони друкуються окремо. */
   answerHint: string
-  /** Приклад одного завдання у YAML (без відступу), валідний за схемою типу. */
+  /** Приклади завдань у YAML (список), валідні за профілем за замовчуванням. */
   example: string
 }
 
@@ -57,35 +64,40 @@ export interface LintProblem {
   text: string
 }
 
+/** Схема типу залежить від профілю іспиту (кількість варіантів, полів тощо). */
+export type SchemaFactory = (profile: ExamProfile) => z.ZodType<{ type: string }>
+
+export type QuestionOf<S extends SchemaFactory> = z.output<ReturnType<S>>
+
 /**
  * Контракт модуля типу завдання — усе, що движок має знати про тип.
  * Новий тип = файл поруч + рядок у registry.ts; TypeScript не дасть пропустити метод.
- * `S` — схема Zod завдання (її вивід — завдання до рендеру з Markdown, після — HTML, форма та сама),
+ * `S` — фабрика схеми (вивід — завдання до рендеру з Markdown, після — HTML, форма та сама),
  * `D` — чернетка відповіді.
  */
-export interface QuestionModule<S extends z.ZodType<{ type: string }>, D> {
-  type: z.output<S>["type"]
+export interface QuestionModule<S extends SchemaFactory, D> {
+  type: QuestionOf<S>["type"]
   schema: S
   meta: QuestionMeta
   /** Рендер власних текстових полів типу (варіантів тощо); умову й пояснення рендерить движок. */
-  render(question: z.output<S>, md: Markdown): Promise<z.output<S>>
+  render(question: QuestionOf<S>, md: Markdown): Promise<QuestionOf<S>>
   /** Порядок показу варіантів (індекси); порожній, якщо тип не перемішує. */
-  displayOrder(question: z.output<S>, random: () => number): number[]
-  emptyDraft(question: z.output<S>): D
+  displayOrder(question: QuestionOf<S>, random: () => number): number[]
+  emptyDraft(question: QuestionOf<S>): D
   isAnswered(draft: D): boolean
   /** Чому відповідь не можна перевірити (напр. не число), інакше `null`. */
   invalidReason(draft: D): string | null
-  isCorrect(question: z.output<S>, draft: D): boolean
-  /** Правильна відповідь, як на бланку (HTML); літери — відносно порядку показу. */
-  answerHtml(question: z.output<S>, order: number[]): string
+  isCorrect(question: QuestionOf<S>, draft: D): boolean
+  /** Правильна відповідь, як на бланку (HTML); літери профілю — відносно порядку показу. */
+  answerHtml(question: QuestionOf<S>, order: number[], profile: ExamProfile): string
   /** Еталонна правильна чернетка — для прогону практик і тестів. */
-  correctDraft(question: z.output<S>): D
+  correctDraft(question: QuestionOf<S>): D
   /** Гарантовано неправильна, але придатна до перевірки чернетка. */
-  wrongDraft(question: z.output<S>): D
+  wrongDraft(question: QuestionOf<S>): D
   /** Клавіша-цифра 1–9: оновлення чернетки або `null`, якщо тип її не використовує. */
-  digit?(question: z.output<S>, order: number[], digit: number): ((draft: D) => D) | null
+  digit?(question: QuestionOf<S>, order: number[], digit: number): ((draft: D) => D) | null
   /** Евристики якості, що залежать від типу (загальні — у ../lint.ts). */
-  lint?(question: z.output<S>): LintProblem[]
+  lint?(question: QuestionOf<S>): LintProblem[]
 }
 
 /** Варіанти, що залежать від порядку або посилаються на літери, ламаються після перемішування. */
@@ -103,4 +115,16 @@ export function positionalOptionProblems(options: string[], keepOrder: boolean):
         },
       ]
     : []
+}
+
+const unique = (items: readonly unknown[]) => new Set(items).size === items.length
+
+/** Усі елементи різні — спільна перевірка для варіантів, пунктів, індексів. */
+export const uniqueIssue = (
+  ctx: z.RefinementCtx,
+  items: readonly unknown[],
+  path: string,
+  message: string
+) => {
+  if (!unique(items)) ctx.addIssue({ code: "custom", path: [path], message })
 }

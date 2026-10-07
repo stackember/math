@@ -15,7 +15,7 @@ const progress = (partial: Partial<Progress>): Progress => ({ ...EMPTY_PROGRESS,
 
 describe("overview", () => {
   it("тема без записів — порожній прогрес і нулі за правилами", () => {
-    const result = overview([topic("x", { a: "A" })], () => EMPTY_PROGRESS)
+    const result = overview([topic("x", { a: "A" })], () => EMPTY_PROGRESS, "mixed/p")
     expect(result.topics[0].rules).toEqual([{ tag: "a", label: "A", correct: 0, total: 0 }])
     expect(result.started).toBe(0)
     expect(result.attempts).toBe(0)
@@ -29,13 +29,14 @@ describe("overview", () => {
         attempts: [{ score: 7, total: 10, tags: {}, at: 1 }],
         tags: { a: { correct: 1, total: 4 }, b: { correct: 3, total: 3 } },
       }),
-      mixed: progress({
+      "mixed/p": progress({
         tags: { "x/a": { correct: 2, total: 2 }, "y/b": { correct: 0, total: 2 } },
       }),
     }
     const result = overview(
       [topic("x", { a: "A", b: "B" }), topic("y", { b: "B" })],
-      (id) => stored[id] ?? EMPTY_PROGRESS
+      (id) => stored[id] ?? EMPTY_PROGRESS,
+      "mixed/p"
     )
     expect(result.topics[0].rules).toEqual([
       { tag: "a", label: "A", correct: 3, total: 6 },
@@ -48,12 +49,14 @@ describe("overview", () => {
     ])
     expect(result.started).toBe(1)
     expect(result.attempts).toBe(1)
-    expect(result.mixed).toBe(stored.mixed)
+    expect(result.mixed).toBe(stored["mixed/p"])
   })
 
   it("правило з однією відповіддю ще не слабке", () => {
-    const result = overview([topic("x", { a: "A" })], () =>
-      progress({ tags: { a: { correct: 0, total: 1 } } })
+    const result = overview(
+      [topic("x", { a: "A" })],
+      () => progress({ tags: { a: { correct: 0, total: 1 } } }),
+      "mixed/p"
     )
     expect(result.weak).toEqual([])
   })

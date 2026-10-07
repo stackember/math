@@ -8,7 +8,7 @@ import { input } from "../model/question/short"
 import { useTrainerSession } from "./use-trainer-session"
 
 const choice: RenderedQuestion = {
-  id: 0,
+  index: 0,
   type: "choice",
   level: 1,
   tag: "a",
@@ -19,7 +19,7 @@ const choice: RenderedQuestion = {
   keepOrder: true,
 }
 const short: RenderedQuestion = {
-  id: 1,
+  index: 1,
   type: "short",
   level: 2,
   tag: "b",
@@ -36,7 +36,7 @@ describe("useTrainerSession", () => {
     const onComplete = vi.fn()
     const { result } = renderHook(() => useTrainerSession([choice, short], { onComplete }))
 
-    expect(result.current.step?.question.id).toBe(0) // легке йде першим
+    expect(result.current.step?.question.index).toBe(0) // легке йде першим
     act(() => result.current.answer(choose(2)))
     act(() => result.current.check())
     expect(result.current.correct).toBe(true)
@@ -78,7 +78,7 @@ describe("useTrainerSession", () => {
 
     act(() => result.current.retryWrong())
     expect(result.current.session.mode).toBe("retry")
-    expect(result.current.session.steps.map((s) => s.question.id)).toEqual([0])
+    expect(result.current.session.steps.map((s) => s.question.index)).toEqual([0])
 
     act(() => result.current.answer(choose(2)))
     act(() => result.current.check())

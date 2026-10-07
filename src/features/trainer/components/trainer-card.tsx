@@ -11,13 +11,14 @@ import { useProgress } from "../hooks/use-progress"
 import { useStepFocus } from "../hooks/use-step-focus"
 import { useTrainerKeyboard } from "../hooks/use-trainer-keyboard"
 import { useTrainerSession } from "../hooks/use-trainer-session"
+import { profileOf } from "../model/exam/registry"
 import { moduleOf, updateDraft } from "../model/question/registry"
 import type { RenderedTrainer } from "../model/schema"
 import { isLastStep } from "../model/session"
 import { AnswerField } from "./answer-field"
 import { Feedback, Warning } from "./feedback"
 import { Results } from "./results"
-import { Html, LEVELS } from "./shared"
+import { Html } from "./shared"
 
 interface Props {
   trainer: RenderedTrainer
@@ -26,6 +27,7 @@ interface Props {
 
 /** Картка тренажера: композиція hooks (стан, прогрес, клавіатура, фокус) і презентаційних компонентів. */
 export function TrainerCard({ trainer, trainerId }: Props) {
+  const profile = profileOf(trainer.exam)
   const { progress, record } = useProgress(trainerId)
   const t = useTrainerSession(trainer.questions, { onComplete: record })
   const cardRef = useRef<HTMLDivElement>(null)
@@ -63,7 +65,7 @@ export function TrainerCard({ trainer, trainerId }: Props) {
       <Card
         ref={cardRef}
         tabIndex={-1}
-        data-question={step?.question.id}
+        data-question={step?.question.index}
         data-topic={step?.question.topic}
         className="scroll-mt-20 gap-5 py-5 outline-none [--card-spacing:--spacing(5)]"
       >
@@ -82,8 +84,8 @@ export function TrainerCard({ trainer, trainerId }: Props) {
                   {session.mode === "full" ? "Завдання" : "Повторення помилок"} {session.index + 1}{" "}
                   / {session.steps.length}
                 </span>
-                <Badge variant={LEVELS[step.question.level].variant}>
-                  {"★".repeat(step.question.level)} {LEVELS[step.question.level].label}
+                <Badge variant={profile.levels[step.question.level].variant}>
+                  {"★".repeat(step.question.level)} {profile.levels[step.question.level].label}
                 </Badge>
               </div>
 
@@ -114,13 +116,14 @@ export function TrainerCard({ trainer, trainerId }: Props) {
               <AnswerField
                 step={step}
                 draft={session.draft}
+                profile={profile}
                 checked={t.checked}
                 correct={t.correct}
                 onAnswer={t.answer}
               />
 
               {session.warning && <Warning text={session.warning} />}
-              {t.checked && <Feedback step={step} correct={t.correct} />}
+              {t.checked && <Feedback step={step} profile={profile} correct={t.correct} />}
             </CardContent>
 
             <CardFooter className="justify-end border-t-0 bg-transparent">

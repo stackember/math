@@ -2,7 +2,7 @@ import { Checkbox } from "@base-ui/react/checkbox"
 
 import { toggle } from "../model/question/multi"
 import { OptionLetter, optionRowClass } from "./option-row"
-import { Html, LETTERS, type AnswerProps, type Mark } from "./shared"
+import { Html, type AnswerProps, type Mark } from "./shared"
 
 function markOf(option: number, { question, draft, checked }: AnswerProps<"multi">): Mark {
   const chosen = draft.chosen.includes(option)
@@ -13,12 +13,12 @@ function markOf(option: number, { question, draft, checked }: AnswerProps<"multi
 }
 
 /**
- * Варіанти А–Д як прапорці (Base UI): пробіл перемикає, Tab переходить між ними.
+ * Варіанти як прапорці (Base UI): пробіл перемикає, Tab переходить між ними.
  * Після перевірки — лише для читання: обрано правильно (correct), пропущено (missed, пунктир),
  * обрано зайве (wrong). `data-option` — індекс у frontmatter, `data-mark` — стан (для e2e).
  */
 export function MultiAnswer(props: AnswerProps<"multi">) {
-  const { question, order, draft, checked, onAnswer } = props
+  const { question, order, draft, profile, checked, onAnswer } = props
   return (
     <div role="group" aria-label="Варіанти відповіді" data-answer="multi" className="grid gap-2">
       {order.map((option, position) => {
@@ -33,7 +33,7 @@ export function MultiAnswer(props: AnswerProps<"multi">) {
             className={optionRowClass(mark)}
             onCheckedChange={() => onAnswer(toggle(option))}
           >
-            <OptionLetter letter={LETTERS[position]} mark={mark} />
+            <OptionLetter letter={profile.letters[position]} mark={mark} />
             <Html html={question.options[option]} />
           </Checkbox.Root>
         )
