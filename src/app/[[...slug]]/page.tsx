@@ -1,5 +1,6 @@
 import { DocsBody, DocsDescription, DocsPage, DocsTitle } from "fumadocs-ui/layouts/docs/page"
 import { createRelativeLink } from "fumadocs-ui/mdx"
+import { findNeighbour } from "fumadocs-core/page-tree"
 import type { Metadata } from "next"
 import { notFound } from "next/navigation"
 
@@ -9,6 +10,21 @@ import { source } from "@/features/content/model/source"
 import { isPractice, topicOf } from "@/features/content/model/topic"
 import { Trainer } from "@/features/trainer/components/trainer"
 import { EXAM } from "@/features/trainer/model/exam"
+
+/**
+ * Сусідні сторінки для футера «‹ ›» з повними назвами. У дереві меню теорія і практика
+ * підписані коротко («Теорія», «Практика»), а у футері потрібна назва сторінки.
+ */
+function footerItems(url: string) {
+  const full = (item?: { url: string }) => {
+    const neighbour = item && source.getPage(item.url.split("/").filter(Boolean))
+    return neighbour
+      ? { url: neighbour.url, name: neighbour.data.title, description: neighbour.data.description }
+      : undefined
+  }
+  const { previous, next } = findNeighbour(source.getPageTree(), url)
+  return { previous: full(previous), next: full(next) }
+}
 
 export default async function Page(props: PageProps<"/[[...slug]]">) {
   const { slug } = await props.params
@@ -20,11 +36,9 @@ export default async function Page(props: PageProps<"/[[...slug]]">) {
   const MDX = page.data.body
 
   return (
-    <DocsPage
-      toc={page.data.toc}
-      tableOfContent={{ enabled: !practice }}
-      tableOfContentPopover={{ enabled: !practice }}
-    >
+    // Зміст на практиці порожній (заголовків немає): Fumadocs тоді лишає порожню колонку
+    // тієї самої ширини, тож текст не стрибає при переході теорія ↔ практика.
+    <DocsPage toc={page.data.toc} footer={{ items: footerItems(page.url) }}>
       <DocsTitle>{page.data.title}</DocsTitle>
       <DocsDescription className="mb-0">{page.data.description}</DocsDescription>
       {topic && (

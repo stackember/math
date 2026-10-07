@@ -33,7 +33,10 @@ const trainer = {
   ],
 }
 
-const validate = (path: string, data: unknown) => frontmatterSchema({ path })["~standard"].validate(data)
+const FRONTMATTER_ONLY = "---\ntitle: x\n---\n"
+
+const validate = (path: string, data: unknown, source = FRONTMATTER_ONLY) =>
+  frontmatterSchema({ path, source })["~standard"].validate(data)
 
 describe("frontmatterSchema", () => {
   it("теорія без тренажера проходить", async () => {
@@ -52,6 +55,14 @@ describe("frontmatterSchema", () => {
     const result = await validate("content/numbers/modulus/practice.mdx", page)
     expect(result.issues?.map((i) => i.message)).toEqual([
       "немає блоку trainer: у practice.mdx тренажер обов'язковий",
+    ])
+  })
+
+  it("практика з текстом під frontmatter — помилка: практика це лише тренажер", async () => {
+    const source = "---\ntitle: x\n---\n\n## Коротко про головне\n\n- правило\n"
+    const result = await validate("content/numbers/modulus/practice.mdx", { ...page, trainer }, source)
+    expect(result.issues?.map((i) => i.message)).toEqual([
+      "practice.mdx — лише frontmatter: практика це тільки тренажер, правила пиши на сторінці теорії",
     ])
   })
 

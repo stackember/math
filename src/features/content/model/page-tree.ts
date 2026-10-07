@@ -3,14 +3,16 @@ import type { LoaderPlugin } from "fumadocs-core/source"
 
 import { PRACTICE } from "./topic"
 
-/** Пункт практики в меню (повна назва лишається в заголовку сторінки й у вкладці). */
+/** Пункти меню всередині теми (повні назви лишаються в заголовках сторінок і у вкладці). */
+export const THEORY_MENU_NAME = "Теорія"
 export const PRACTICE_MENU_NAME = "Практика"
 
 const isPracticeUrl = (url: string) => url.endsWith(`/${PRACTICE}`)
 
 /**
- * Меню: тема без практики й підсторінок — звичайний пункт, а не папка з однією сторінкою;
- * практика всередині теми називається коротко «Практика».
+ * Меню: назва теми лише розгортає її, а всередині — «Теорія», «Практика» й підсторінки.
+ * Інакше Fumadocs робить назву теми посиланням на теорію, і на телефоні тап веде на сторінку
+ * й закриває меню, не показавши практику. Тема без практики й підсторінок — звичайний пункт.
  */
 export function simplifyTree(nodes: PageTree.Node[]): PageTree.Node[] {
   return nodes.map((node) => {
@@ -20,8 +22,13 @@ export function simplifyTree(nodes: PageTree.Node[]): PageTree.Node[] {
     if (node.type !== "folder") return node
 
     const children = simplifyTree(node.children)
-    if (node.index && children.length === 0) return node.index
-    return { ...node, children }
+    if (!node.index) return { ...node, children }
+    if (children.length === 0) return node.index
+    return {
+      ...node,
+      index: undefined,
+      children: [{ ...node.index, name: THEORY_MENU_NAME }, ...children],
+    }
   })
 }
 

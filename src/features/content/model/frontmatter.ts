@@ -11,6 +11,9 @@ import { createMarkdown } from "@/shared/lib/markdown"
 /** Файл практики: content/<розділ>/<тема>/practice.mdx. */
 const isPracticeFile = (path: string) => /(^|[\\/])practice\.mdx$/.test(path)
 
+/** Тіло MDX після frontmatter (порожній рядок, якщо файл — лише frontmatter). */
+const bodyOf = (source: string) => source.replace(/^---\r?\n[\s\S]*?\r?\n---/, "").trim()
+
 const md = createMarkdown()
 
 const MIME: Record<string, string> = {
@@ -37,19 +40,30 @@ const theorySchema = pageSchema.extend({
 })
 
 /**
- * Практика: тренажер обов'язковий. Після перевірки складу формули, Markdown і рисунки завдань
+ * Практика: тренажер обов'язковий, а тексту під frontmatter немає — практика це лише тренажер,
+ * правила належать сторінці теорії. Після перевірки складу формули, Markdown і рисунки завдань
  * рендеряться в HTML тут же, під час збирання — у браузер іде готовий HTML, KaTeX там не потрібен.
  */
-const practiceSchema = (file: string) =>
-  pageSchema.extend({
-    trainer: trainerSchema.transform((trainer) =>
-      renderTrainer(trainer, { md, readAsset: assetReader(file) })
-    ),
-  })
+const practiceSchema = (file: string, source: string) =>
+  pageSchema
+    .extend({
+      trainer: trainerSchema.transform((trainer) =>
+        renderTrainer(trainer, { md, readAsset: assetReader(file) })
+      ),
+    })
+    .superRefine((_, ctx) => {
+      if (bodyOf(source) !== "") {
+        ctx.addIssue({
+          code: "custom",
+          message:
+            "practice.mdx — лише frontmatter: практика це тільки тренажер, правила пиши на сторінці теорії",
+        })
+      }
+    })
 
 /**
  * Схема frontmatter залежить від імені файлу: fumadocs-mdx викликає цю функцію
- * для кожного документа зі шляхом до нього. Помилки — під час збирання, українською.
+ * для кожного документа зі шляхом до нього і його текстом. Помилки — під час збирання, українською.
  */
-export const frontmatterSchema = ({ path }: { path: string }) =>
-  isPracticeFile(path) ? practiceSchema(path) : theorySchema
+export const frontmatterSchema = ({ path, source }: { path: string; source: string }) =>
+  isPracticeFile(path) ? practiceSchema(path, source) : theorySchema

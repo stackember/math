@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test"
 
-import { CONTENT_URLS, NUMBERS_ORDER } from "./content"
+import { CONTENT_URLS, NUMBERS_ORDER, topicTitle } from "./content"
 
 // нові теми й практики потрапляють у цю перевірку самі
 for (const url of CONTENT_URLS) {
@@ -20,30 +20,51 @@ for (const url of CONTENT_URLS) {
   })
 }
 
-const sidebarHrefs = (page: import("@playwright/test").Page) =>
-  page.locator("#nd-sidebar a").evaluateAll((links) => links.map((a) => a.getAttribute("href")))
+/** Пункти меню зверху вниз: теми з практикою — кнопки, що розгортають, решта — посилання. */
+const sidebarLabels = (page: import("@playwright/test").Page) =>
+  page
+    .locator("#nd-sidebar a, #nd-sidebar button")
+    .evaluateAll((items) => items.map((item) => item.textContent?.trim() ?? ""))
 
 test("меню: теми в порядку meta.json розділу", async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== "desktop", "на телефоні меню сховане в шухляді")
   await page.goto("/")
   await expect(page).toHaveTitle("Математика · НМТ")
 
-  const hrefs = await sidebarHrefs(page)
-  const positions = NUMBERS_ORDER.map((slug) => hrefs.indexOf(`/numbers/${slug}`))
+  const labels = await sidebarLabels(page)
+  const positions = NUMBERS_ORDER.map((slug) => labels.indexOf(topicTitle("numbers", slug)))
   expect(positions.every((p) => p >= 0)).toBe(true)
   expect([...positions].sort((a, b) => a - b)).toEqual(positions)
 })
 
-test("меню: практика — пункт «Практика» одразу під своєю темою", async ({ page }, testInfo) => {
+test("меню: тема з практикою розгортається в «Теорія» і «Практика»", async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== "desktop", "на телефоні меню сховане в шухляді")
   await page.goto("/numbers/number-sets")
 
-  const hrefs = await sidebarHrefs(page)
-  const theory = hrefs.indexOf("/numbers/number-sets")
-  expect(hrefs[theory + 1]).toBe("/numbers/number-sets/practice")
-  await expect(page.locator('#nd-sidebar a[href="/numbers/number-sets/practice"]')).toHaveText(
-    "Практика"
-  )
+  const sidebar = page.locator("#nd-sidebar")
+  // назва теми — кнопка, що розгортає, а не посилання на теорію
+  await expect(sidebar.getByRole("button", { name: "Числові множини" })).toBeVisible()
+  await expect(sidebar.locator('a[href="/numbers/number-sets"]')).toHaveText("Теорія")
+  await expect(sidebar.locator('a[href="/numbers/number-sets/practice"]')).toHaveText("Практика")
+
+  const labels = await sidebarLabels(page)
+  const topic = labels.indexOf("Числові множини")
+  expect(labels.slice(topic, topic + 3)).toEqual(["Числові множини", "Теорія", "Практика"])
+
+  // згорнута тема ховає свої сторінки, а поточна — розгорнута сама
+  await page.goto("/numbers/modulus")
+  await expect(sidebar.locator('a[href="/numbers/number-sets/practice"]')).toHaveCount(0)
+})
+
+test("футер «‹ ›» показує повні назви сусідніх сторінок, а не «Теорія»", async ({ page }) => {
+  await page.goto("/numbers/number-sets")
+  const footer = page.locator("#nd-page").getByRole("link", { name: /Практика: числові множини/ })
+  await expect(footer).toHaveAttribute("href", "/numbers/number-sets/practice")
+
+  await page.goto("/numbers/number-sets/practice")
+  await expect(
+    page.locator("#nd-page").getByRole("link", { name: /^Числові множини/ })
+  ).toHaveAttribute("href", "/numbers/number-sets")
 })
 
 test("теорія: формули без помилок і перехід до практики", async ({ page }) => {

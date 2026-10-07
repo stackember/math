@@ -15,7 +15,7 @@ function collectErrors(page: Page) {
   return errors
 }
 
-/** Усі локатори — в межах картки тренажера, щоб таблиці чи поля шпаргалки не заважали. */
+/** Усі локатори — в межах картки тренажера, щоб елементи поза нею (меню, футер) не заважали. */
 const card = (page: Page) => page.locator("[data-slot=card]")
 /** Заголовок пояснення: «Правильно» або «Неправильно. Відповідь: …». */
 const verdict = (page: Page) => card(page).locator("[data-slot=alert-title]")

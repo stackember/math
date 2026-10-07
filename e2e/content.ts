@@ -24,6 +24,14 @@ export const NUMBERS_ORDER = (
   }
 ).pages.filter((slug) => slug !== "...")
 
+/** Назва теми з frontmatter її теорії — так вона підписана в меню. */
+export function topicTitle(area: string, slug: string): string {
+  const text = readFileSync(new URL(`${area}/${slug}/index.mdx`, CONTENT_DIR), "utf8")
+  const frontmatter = /^---\r?\n([\s\S]*?)\r?\n---/.exec(text)?.[1]
+  if (!frontmatter) throw new Error(`${area}/${slug}: немає frontmatter`)
+  return (parse(frontmatter) as { title: string }).title
+}
+
 export type PracticeQuestion =
   | { type: "choice"; answer: number }
   | { type: "match"; answer: number[] }
