@@ -1,87 +1,61 @@
-import rehypeKatex from "rehype-katex"
-import rehypeStringify from "rehype-stringify"
-import remarkMath from "remark-math"
-import remarkParse from "remark-parse"
-import remarkRehype from "remark-rehype"
-import { unified } from "unified"
+import type { Markdown } from "@/shared/lib/markdown"
 
-import { katexOptions, rehypeKatexStrict } from "@/shared/lib/math"
+import { moduleOf, type Question, type RenderedQuestion } from "./question/registry"
+import type { RenderedTrainer, TrainerData } from "./schema"
 
-import type { Question, RenderedQuestion, RenderedTrainer, TrainerData } from "./schema"
-
-const processor = unified()
-  .use(remarkParse)
-  .use(remarkMath)
-  .use(remarkRehype)
-  .use(rehypeKatex, katexOptions)
-  .use(rehypeKatexStrict)
-  .use(rehypeStringify)
-
-const SINGLE_PARAGRAPH = /^<p>([\s\S]*)<\/p>\n?$/
-
-/** Рядок з Markdown і `$формулами$` → HTML для одного рядка тексту. */
-export async function renderInline(markdown: string): Promise<string> {
-  let html: string
-  try {
-    html = String(await processor.process(markdown))
-  } catch (error) {
-    // зламана формула: додаємо сам текст, щоб його було легко знайти у frontmatter
-    throw new Error(
-      `${error instanceof Error ? error.message : String(error)} — у тексті «${markdown}»`
-    )
-  }
-  const match = SINGLE_PARAGRAPH.exec(html)
-  if (!match || match[1].includes("<p>")) {
-    throw new Error(
-      `Очікувався один рядок тексту, а Markdown дав блоки (список, абзаци?): «${markdown}»`
-    )
-  }
-  return match[1]
+interface Asset {
+  mime: string
+  base64: string
 }
 
-const all = (items: string[]) => Promise.all(items.map(renderInline))
+export interface RenderOptions {
+  md: Markdown
+  /** Читає файл рисунка за шляхом з frontmatter (відносно папки теми). Лише під час збирання. */
+  readAsset(src: string): Promise<Asset>
+}
 
-async function renderQuestion(question: Question, id: number): Promise<RenderedQuestion> {
-  const base = {
-    ...question,
+const escapeAttr = (s: string) =>
+  s.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;")
+
+/** Рисунок вбудовується в HTML даними: сторінка самодостатня, окрема папка public/ не потрібна. */
+async function figureHtml(
+  figure: { src: string; alt: string },
+  readAsset: RenderOptions["readAsset"]
+) {
+  const { mime, base64 } = await readAsset(figure.src)
+  return `<img src="data:${mime};base64,${base64}" alt="${escapeAttr(figure.alt)}" class="mx-auto max-h-72">`
+}
+
+async function renderQuestion(
+  question: Question,
+  id: number,
+  { md, readAsset }: RenderOptions
+): Promise<RenderedQuestion> {
+  const own = await moduleOf(question).render(question, md)
+  return {
+    ...own,
     id,
-    q: await renderInline(question.q),
-    why: await renderInline(question.why),
-  }
-  switch (question.type) {
-    case "choice":
-      return {
-        ...base,
-        type: "choice",
-        options: await all(question.options),
-        answer: question.answer,
-        keepOrder: question.keepOrder,
-      }
-    case "match":
-      return {
-        ...base,
-        type: "match",
-        left: await all(question.left),
-        right: await all(question.right),
-        answer: question.answer,
-      }
-    case "short":
-      return { ...base, type: "short", answer: question.answer }
+    q: await md.block(question.q),
+    why: await md.block(question.why),
+    ...(question.figure ? { figureHtml: await figureHtml(question.figure, readAsset) } : {}),
   }
 }
 
 /**
- * Рендер під час збирання (викликається зі схеми frontmatter у src/content/model/frontmatter.ts):
+ * Рендер під час збирання (викликається зі схеми frontmatter у src/features/content/model/frontmatter.ts):
  * у браузер іде готовий HTML, KaTeX там не потрібен. Лише для збирання — клієнтський код це не імпортує.
  */
-export async function renderTrainer(trainer: TrainerData): Promise<RenderedTrainer> {
+export async function renderTrainer(
+  trainer: TrainerData,
+  options: RenderOptions
+): Promise<RenderedTrainer> {
   const tags = await Promise.all(
     Object.entries(trainer.tags).map(
-      async ([id, label]) => [id, await renderInline(label)] as const
+      async ([id, label]) => [id, await options.md.inline(label)] as const
     )
   )
   return {
     tags: Object.fromEntries(tags),
-    questions: await Promise.all(trainer.questions.map(renderQuestion)),
+    questions: await Promise.all(trainer.questions.map((q, i) => renderQuestion(q, i, options))),
   }
 }

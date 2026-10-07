@@ -1,6 +1,11 @@
 import { z } from "zod"
 
 import { EXAM } from "./exam"
+import { lintQuestion } from "./lint"
+import { questionSchema, type RenderedQuestion } from "./question/registry"
+
+// Повідомлення Zod — українською; власний текст лише там, де стандартний незрозумілий
+z.config(z.locales.uk())
 
 /**
  * Правила складу тренажера — з профілю іспиту (exam.ts). Перевіряються під час збирання сайту
@@ -10,118 +15,55 @@ const RULES = {
   total: EXAM.composition.total,
   levels: EXAM.composition.levels,
   types: EXAM.composition.types,
-  choiceOptions: EXAM.choiceOptions,
-  matchLeft: EXAM.matchLeft,
-  matchRight: EXAM.matchRight,
 } as const
 
-/** Варіанти, що залежать від порядку, ламаються після перемішування. */
-const POSITIONAL = /(усі|всі) (перелічені|наведені)|жод\S* з (перелічених|наведених)/i
+const TAG_ID = /^[a-z][a-z0-9-]*$/
 
-const text = z.string().trim().min(1)
-
-const common = {
-  /** 1 — легке, 2 — рівень НМТ, 3 — пастка. */
-  level: z.union([z.literal(1), z.literal(2), z.literal(3)]),
-  /** Ключ з `tags`: яке правило теми перевіряє завдання. */
-  tag: z.string(),
-  /** Умова. Markdown + формули `$...$`. */
-  q: text,
-  /** Розв'язок і чому інші варіанти хибні. Показується після перевірки. */
-  why: text,
-}
-
-const choiceQuestion = z.object({
-  type: z.literal("choice"),
-  ...common,
-  options: z.array(text).length(RULES.choiceOptions),
-  /** Індекс правильного варіанта в `options`, з 0. */
-  answer: z
-    .number()
-    .int()
-    .min(0)
-    .max(RULES.choiceOptions - 1),
-  /** Не перемішувати варіанти (напр. числа за зростанням). */
-  keepOrder: z.boolean().default(false),
-})
-
-const matchQuestion = z.object({
-  type: z.literal("match"),
-  ...common,
-  left: z.array(text).length(RULES.matchLeft),
-  right: z.array(text).length(RULES.matchRight),
-  /** `answer[i]` — індекс у `right` для рядка `left[i]`. */
-  answer: z
-    .array(
-      z
-        .number()
-        .int()
-        .min(0)
-        .max(RULES.matchRight - 1)
-    )
-    .length(RULES.matchLeft),
-})
-
-const shortQuestion = z.object({
-  type: z.literal("short"),
-  ...common,
-  /** Ціле або скінченний десятковий дріб. */
-  answer: z.number(),
-})
-
-const questionSchema = z.discriminatedUnion("type", [choiceQuestion, matchQuestion, shortQuestion])
+const label = z.string().trim().min(1, { error: "назва правила не може бути порожньою" })
 
 /** Блок `trainer` у frontmatter practice.mdx: правила теми (теги) і завдання. */
 export const trainerSchema = z
-  .object(
+  .strictObject(
     {
       /** id правила → назва українською (видно в результатах). */
-      tags: z.record(z.string().regex(/^[a-z][a-z0-9-]*$/, "id тегу: латиниця в kebab-case"), text),
+      tags: z.record(z.string(), label),
       questions: z.array(questionSchema),
     },
     { error: "немає блоку trainer: у practice.mdx тренажер обов'язковий" }
   )
   .superRefine((trainer, ctx) => {
     const issue = (message: string, path: (string | number)[] = []) =>
-      ctx.addIssue({ code: "custom", message, path: ["questions", ...path] })
+      ctx.addIssue({ code: "custom", message, path })
+
+    for (const id of Object.keys(trainer.tags)) {
+      if (!TAG_ID.test(id)) issue(`тег «${id}»: id латиницею в kebab-case`, ["tags", id])
+    }
 
     const usedTags = new Set<string>()
     const seen = new Set<string>()
 
     trainer.questions.forEach((question, i) => {
       const n = `завдання ${i + 1}`
-      if (!(question.tag in trainer.tags))
-        issue(`${n}: тег «${question.tag}» не описаний у tags`, [i, "tag"])
+      const at = (field: string) => ["questions", i, field]
+
+      if (!Object.hasOwn(trainer.tags, question.tag)) {
+        issue(`${n}: тег «${question.tag}» не описаний у tags`, at("tag"))
+      }
       usedTags.add(question.tag)
 
-      if (seen.has(question.q)) issue(`${n}: така сама умова вже є`, [i, "q"])
+      if (seen.has(question.q)) issue(`${n}: така сама умова вже є`, at("q"))
       seen.add(question.q)
 
-      if (question.type === "choice") {
-        if (new Set(question.options).size !== question.options.length) {
-          issue(`${n}: варіанти повторюються`, [i, "options"])
-        }
-        if (!question.keepOrder) {
-          const positional = question.options.find((option) => POSITIONAL.test(option))
-          if (positional) {
-            issue(`${n}: «${positional}» залежить від порядку, а варіанти перемішуються`, [
-              i,
-              "options",
-            ])
-          }
-        }
-      }
-      if (question.type === "match" && new Set(question.answer).size !== question.answer.length) {
-        issue(`${n}: відповіді у відповідності мають бути різними`, [i, "answer"])
-      }
+      for (const problem of lintQuestion(question)) issue(`${n}: ${problem}`, at("options"))
     })
 
     for (const tag of Object.keys(trainer.tags)) {
-      if (!usedTags.has(tag)) issue(`тег «${tag}» не покритий жодним завданням`)
+      if (!usedTags.has(tag)) issue(`тег «${tag}» не покритий жодним завданням`, ["tags", tag])
     }
 
-    const inRange = (label: string, value: number, [min, max]: readonly [number, number]) => {
-      if (value < min || value > max) issue(`${label}: потрібно ${min}–${max}, зараз ${value}`)
+    const inRange = (what: string, value: number, [min, max]: readonly [number, number]) => {
+      if (value < min || value > max)
+        issue(`${what}: потрібно ${min}–${max}, зараз ${value}`, ["questions"])
     }
     const count = (predicate: (q: (typeof trainer.questions)[number]) => boolean) =>
       trainer.questions.filter(predicate).length
@@ -147,8 +89,4 @@ export const trainerSchema = z
   })
 
 export type TrainerData = z.infer<typeof trainerSchema>
-export type Question = z.infer<typeof questionSchema>
-
-/** Завдання після рендеру під час збирання (render.ts): тексти — HTML, плюс стабільний `id`. */
-export type RenderedQuestion = Question & { id: number }
 export type RenderedTrainer = { tags: TrainerData["tags"]; questions: RenderedQuestion[] }

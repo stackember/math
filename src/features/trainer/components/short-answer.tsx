@@ -19,7 +19,7 @@ export function ShortAnswer({ value, checked, correct, onChange }: Props) {
   }, [])
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-2" data-answer="short">
       {/* Без inputMode="decimal": на iOS у такій клавіатурі немає мінуса. */}
       <Input
         ref={ref}

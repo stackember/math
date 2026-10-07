@@ -1,6 +1,9 @@
-import { cn } from "@/shared/lib/utils"
+import { Radio } from "@base-ui/react/radio"
 
-import type { RenderedQuestion } from "../model/schema"
+import { cn } from "@/shared/lib/utils"
+import { RadioGroup } from "@/shared/ui/radio-group"
+
+import type { RenderedQuestion } from "../model/question/registry"
 import { Html, LETTERS, type Mark } from "./shared"
 
 type MatchQuestion = Extract<RenderedQuestion, { type: "match" }>
@@ -14,7 +17,7 @@ interface Props {
 }
 
 const cellStyles: Record<Mark, string> = {
-  idle: "border-border bg-background enabled:hover:border-primary",
+  idle: "border-border bg-background not-data-readonly:hover:border-primary",
   selected: "border-primary bg-primary",
   correct: "border-success bg-success",
   missed: "border-dashed border-success bg-success-low",
@@ -29,11 +32,16 @@ function markOf(row: number, column: number, { question, selected, checked }: Pr
   return isSelected ? "wrong" : "idle"
 }
 
-/** Списки «1–3» і «А–Д» + сітка відповідей, як у бланку НМТ. */
+/**
+ * Списки «1–3» і «А–Д» + сітка відповідей, як у бланку НМТ: кожен рядок — своя група радіокнопок.
+ * `data-row` / `data-option` — індекси з frontmatter (для e2e).
+ */
 export function MatchAnswer(props: Props) {
-  const { question, checked, onSelect } = props
+  const { question, selected, checked, onSelect } = props
+  const columns = { gridTemplateColumns: `1.5rem repeat(${question.right.length}, 2.25rem)` }
+
   return (
-    <div className="space-y-5">
+    <div className="space-y-5" data-answer="match">
       <div className="grid gap-x-8 gap-y-3 sm:grid-cols-2">
         <ol className="space-y-1.5">
           {question.left.map((item, row) => (
@@ -53,42 +61,46 @@ export function MatchAnswer(props: Props) {
         </ol>
       </div>
 
-      <table className="mx-auto border-separate border-spacing-1.5">
-        <thead>
-          <tr>
-            <th />
-            {question.right.map((_, column) => (
-              <th key={column} scope="col" className="text-xs font-semibold text-muted-foreground">
-                {LETTERS[column]}
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {question.left.map((_, row) => (
-            <tr key={row}>
-              <th scope="row" className="pr-1 text-xs font-semibold text-muted-foreground">
-                {row + 1}
-              </th>
-              {question.right.map((_, column) => (
-                <td key={column}>
-                  <button
-                    type="button"
-                    aria-label={`${row + 1} — ${LETTERS[column]}`}
-                    aria-pressed={props.selected[row] === column}
-                    disabled={checked}
-                    onClick={() => onSelect(row, column)}
-                    className={cn(
-                      "block size-9 rounded-md border-2 transition-colors outline-none focus-visible:ring-3 focus-visible:ring-ring/50 enabled:cursor-pointer",
-                      cellStyles[markOf(row, column, props)]
-                    )}
-                  />
-                </td>
-              ))}
-            </tr>
+      <div className="mx-auto w-fit space-y-1.5">
+        <div
+          className="grid items-center gap-1.5 text-center text-xs font-semibold text-muted-foreground"
+          style={columns}
+          aria-hidden="true"
+        >
+          <span />
+          {question.right.map((_, column) => (
+            <span key={column}>{LETTERS[column]}</span>
           ))}
-        </tbody>
-      </table>
+        </div>
+        {question.left.map((_, row) => (
+          <RadioGroup
+            key={row}
+            aria-label={`Пункт ${row + 1}`}
+            data-row={row}
+            className="grid w-auto items-center gap-1.5"
+            style={columns}
+            value={selected[row] === null ? null : String(selected[row])}
+            readOnly={checked}
+            onValueChange={(value) => onSelect(row, Number(value))}
+          >
+            <span className="text-xs font-semibold text-muted-foreground" aria-hidden="true">
+              {row + 1}
+            </span>
+            {question.right.map((_, column) => (
+              <Radio.Root
+                key={column}
+                value={String(column)}
+                data-option={column}
+                aria-label={`${row + 1} — ${LETTERS[column]}`}
+                className={cn(
+                  "block size-9 rounded-md border-2 transition-colors outline-none not-data-readonly:cursor-pointer focus-visible:ring-3 focus-visible:ring-ring/50",
+                  cellStyles[markOf(row, column, props)]
+                )}
+              />
+            ))}
+          </RadioGroup>
+        ))}
+      </div>
     </div>
   )
 }

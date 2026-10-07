@@ -9,7 +9,6 @@ import { source } from "@/features/content/model/source"
 import { isPractice, topicOf } from "@/features/content/model/topic"
 import { Trainer } from "@/features/trainer/components/trainer"
 import { EXAM } from "@/features/trainer/model/exam"
-import { storageKey } from "@/features/trainer/model/storage"
 
 export default async function Page(props: PageProps<"/[[...slug]]">) {
   const { slug } = await props.params
@@ -37,11 +36,7 @@ export default async function Page(props: PageProps<"/[[...slug]]">) {
         <MDX components={getMDXComponents({ a: createRelativeLink(source, page) })} />
         {/* Тренажер є на кожній практиці: схема frontmatter вимагає `trainer` у practice.mdx */}
         {page.data.trainer && topic && (
-          <Trainer
-            trainer={page.data.trainer}
-            storageKey={storageKey(topic.slug)}
-            legacyStorageKey={storageKey(`practice/${topic.slug}`)}
-          />
+          <Trainer trainer={page.data.trainer} trainerId={topic.slug} />
         )}
       </DocsBody>
     </DocsPage>

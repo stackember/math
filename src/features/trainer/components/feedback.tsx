@@ -1,7 +1,7 @@
 import { CircleAlert, CircleCheck, CircleX } from "lucide-react"
 
-import { Alert, AlertDescription, AlertTitle } from "@/shared/ui/alert"
 import { cn } from "@/shared/lib/utils"
+import { Alert, AlertDescription, AlertTitle } from "@/shared/ui/alert"
 
 import { answerHtml } from "../model/answer-text"
 import type { Step } from "../model/session"
@@ -30,7 +30,7 @@ export function Feedback({ step, correct }: { step: Step; correct: boolean }) {
         )}
       </AlertTitle>
       <AlertDescription className="text-base text-foreground">
-        <Html html={step.question.why} />
+        <Html as="div" html={step.question.why} />
       </AlertDescription>
     </Alert>
   )

@@ -1,37 +1,60 @@
 import { describe, expect, it } from "vitest"
 
-import { renderInline, renderTrainer } from "./render"
+import { createMarkdown } from "@/shared/lib/markdown"
+
+import { renderTrainer } from "./render"
 import type { TrainerData } from "./schema"
 
-describe("renderInline", () => {
-  it("рендерить формули, макроси множин і Markdown в один рядок", async () => {
-    const html = await renderInline("Число $5 \\in \\N$ — **натуральне**")
-    expect(html).toContain('class="katex"')
-    expect(html).toContain("<strong>натуральне</strong>")
-    expect(html).not.toContain("<p>")
-  })
-
-  it("відмовляється рендерити блоки замість рядка", async () => {
-    await expect(renderInline("- пункт списку")).rejects.toThrow(/один рядок/)
-    await expect(renderInline("абзац 1\n\nабзац 2")).rejects.toThrow(/один рядок/)
-  })
-
-  it("зламана формула — помилка з текстом, а не червоний напис на сторінці", async () => {
-    const broken = "Дріб $\\frac{1}{$ без знаменника"
-    await expect(renderInline(broken)).rejects.toThrow(/Помилка у формулі/)
-    await expect(renderInline(broken)).rejects.toThrow(/без знаменника/)
-  })
-})
+const md = createMarkdown()
+const svg = Buffer.from('<svg xmlns="http://www.w3.org/2000/svg"/>').toString("base64")
+const readAsset = async (src: string) => {
+  if (src !== "./figures/ok.svg") throw new Error(`немає файлу ${src}`)
+  return { mime: "image/svg+xml", base64: svg }
+}
 
 describe("renderTrainer", () => {
-  it("рендерить формули і в завданнях, і в назвах тегів", async () => {
+  it("рендерить формули в завданнях і назвах тегів, умову — блоками", async () => {
     const trainer: TrainerData = {
       tags: { symbols: "Значки $\\in$" },
-      questions: [{ type: "short", level: 1, tag: "symbols", q: "$2+2$?", why: "$4$", answer: 4 }],
+      questions: [
+        {
+          type: "short",
+          level: 1,
+          tag: "symbols",
+          q: "Розв'яжи:\n\n$$\nx + 2 = 4\n$$",
+          why: "$2$",
+          answer: 2,
+        },
+      ],
     }
-    const rendered = await renderTrainer(trainer)
+    const rendered = await renderTrainer(trainer, { md, readAsset })
     expect(rendered.tags.symbols).toContain('class="katex"')
-    expect(rendered.questions[0]).toMatchObject({ id: 0, type: "short", answer: 4 })
-    expect(rendered.questions[0].q).toContain('class="katex"')
+    expect(rendered.questions[0]).toMatchObject({ id: 0, type: "short", answer: 2 })
+    expect(rendered.questions[0].q).toContain("katex-display")
+    expect(rendered.questions[0].figureHtml).toBeUndefined()
+  })
+
+  it("вбудовує рисунок даними, а відсутній файл — помилка", async () => {
+    const base = {
+      type: "short" as const,
+      level: 1 as const,
+      tag: "t",
+      q: "q",
+      why: "w",
+      answer: 1,
+    }
+    const withFigure: TrainerData = {
+      tags: { t: "Т" },
+      questions: [{ ...base, figure: { src: "./figures/ok.svg", alt: "Трикутник" } }],
+    }
+    const rendered = await renderTrainer(withFigure, { md, readAsset })
+    expect(rendered.questions[0].figureHtml).toContain(`src="data:image/svg+xml;base64,${svg}"`)
+    expect(rendered.questions[0].figureHtml).toContain('alt="Трикутник"')
+
+    const missing: TrainerData = {
+      tags: { t: "Т" },
+      questions: [{ ...base, figure: { src: "./figures/no.svg", alt: "x" } }],
+    }
+    await expect(renderTrainer(missing, { md, readAsset })).rejects.toThrow(/немає файлу/)
   })
 })

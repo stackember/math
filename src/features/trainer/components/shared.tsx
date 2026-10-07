@@ -9,9 +9,13 @@ export const LEVELS = EXAM.levels
 /** Стан варіанта/клітинки після вибору та перевірки. */
 export type Mark = "idle" | "selected" | "correct" | "missed" | "wrong"
 
+/** Класи для блокового HTML (абзаци, виносні формули, таблиці, списки) поза prose. */
+const BLOCK =
+  "[&_p+p]:mt-2 [&_.katex-display]:my-3 [&_.katex-display]:overflow-x-auto [&_table]:mx-auto [&_table]:my-2 [&_table]:border-collapse [&_th]:border [&_th]:border-border [&_th]:px-2 [&_th]:py-1 [&_td]:border [&_td]:border-border [&_td]:px-2 [&_td]:py-1 [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5 [&_img]:my-3"
+
 /**
  * HTML, згенерований під час збирання з нашого ж Markdown (див. ../model/render.ts),
- * тому вставляти його напряму безпечно.
+ * тому вставляти його напряму безпечно. `as="div"` — для блокового вмісту (умова, пояснення).
  */
 export function Html({
   html,
@@ -24,7 +28,7 @@ export function Html({
 }) {
   return (
     <Tag
-      className={cn("[&_.katex]:text-[1.05em]", className)}
+      className={cn("[&_.katex]:text-[1.05em]", Tag === "div" && BLOCK, className)}
       dangerouslySetInnerHTML={{ __html: html }}
     />
   )

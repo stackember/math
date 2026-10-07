@@ -1,6 +1,7 @@
 import { useReducer } from "react"
 
-import type { RenderedQuestion } from "../model/schema"
+import type { TrainerResult } from "../model/progress"
+import type { Draft, RenderedQuestion } from "../model/question/registry"
 import {
   createSession,
   currentStep,
@@ -8,13 +9,13 @@ import {
   isLastStep,
   score,
   sessionReducer,
+  tagStats,
   wrongQuestions,
 } from "../model/session"
-import type { Score } from "../model/storage"
 
 export interface TrainerSessionOptions {
   /** Викликається, коли завершено повний прохід (повтор помилок рекорду не змінює). */
-  onComplete?: (result: Score) => void
+  onComplete?: (result: TrainerResult) => void
 }
 
 /** Проходження тренажера: стан сесії (reducer з model/session) і дії для інтерфейсу. */
@@ -29,7 +30,11 @@ export function useTrainerSession(
 
   const next = () => {
     if (session.checked && isLastStep(session) && session.mode === "full") {
-      onComplete?.({ score: score(session), total: session.steps.length })
+      onComplete?.({
+        score: score(session),
+        total: session.steps.length,
+        tags: Object.fromEntries(tagStats(session)),
+      })
     }
     dispatch({ type: "next" })
   }
@@ -45,9 +50,8 @@ export function useTrainerSession(
     step: finished ? null : currentStep(session),
     checked: session.checked,
     correct: session.results[session.index] === true,
-    choose: (option: number) => dispatch({ type: "choose", option }),
-    match: (row: number, column: number) => dispatch({ type: "match", row, column }),
-    input: (value: string) => dispatch({ type: "input", value }),
+    /** Точкове оновлення відповіді — `updateDraft` з модуля типу завдання. */
+    answer: (update: (draft: Draft) => Draft) => dispatch({ type: "answer", update }),
     check: () => dispatch({ type: "check" }),
     next,
     restart: () => dispatch({ type: "start", session: createSession(questions, "full") }),

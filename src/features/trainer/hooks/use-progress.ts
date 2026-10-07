@@ -1,10 +1,10 @@
 import { useState } from "react"
 
-import { loadStats, saveResult, type Score, type TrainerStats } from "../model/storage"
+import { localProgressStore, type ProgressStore, type TrainerResult } from "../model/progress"
 
-/** Найкращий і останній результат тренажера в localStorage. */
-export function useProgress(key: string, legacyKey?: string) {
-  const [stats, setStats] = useState<TrainerStats>(() => loadStats(key, legacyKey))
-  const record = (result: Score) => setStats(saveResult(key, result, legacyKey))
-  return { stats, record }
+/** Прогрес теми зі сховища (localStorage; у тестах — будь-який `ProgressStore`). */
+export function useProgress(trainerId: string, store: ProgressStore = localProgressStore) {
+  const [progress, setProgress] = useState(() => store.load(trainerId))
+  const record = (result: TrainerResult) => setProgress(store.save(trainerId, result))
+  return { progress, record }
 }

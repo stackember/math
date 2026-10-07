@@ -1,5 +1,4 @@
-import { formatNumber } from "./check"
-import { EXAM } from "./exam"
+import { moduleOf } from "./question/registry"
 import type { Step } from "./session"
 
 /**
@@ -7,13 +6,5 @@ import type { Step } from "./session"
  * Літера вибору — відносно показаного (перемішаного) порядку варіантів.
  * Повертає HTML, бо тексти варіантів уже відрендерені під час збирання.
  */
-export function answerHtml({ question, order }: Step): string {
-  switch (question.type) {
-    case "choice":
-      return `${EXAM.letters[order.indexOf(question.answer)]}) ${question.options[question.answer]}`
-    case "match":
-      return question.answer.map((column, row) => `${row + 1}–${EXAM.letters[column]}`).join(", ")
-    case "short":
-      return formatNumber(question.answer)
-  }
-}
+export const answerHtml = ({ question, order }: Step): string =>
+  moduleOf(question).answerHtml(question, order)

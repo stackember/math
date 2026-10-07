@@ -5,22 +5,23 @@ const PORT = 3100
 
 /**
  * E2E-тести проти продакшн-збірки: спершу `npm run build`, потім `npm run test:e2e`
- * (`npm run verify` робить обидва кроки).
+ * (`npm run verify` робить обидва кроки). Усі тести йдуть на комп'ютері й на емуляції телефону.
  */
 export default defineConfig({
   testDir: "e2e",
   fullyParallel: true,
   forbidOnly: Boolean(process.env.CI),
-  retries: process.env.CI ? 1 : 0,
+  // один повтор: клік до гідрації — рідкість, але трасування з повтору покаже, що сталося
+  retries: 1,
   reporter: "list",
   use: {
     baseURL: `http://localhost:${PORT}`,
     locale: "uk-UA",
-    trace: "retain-on-failure",
+    trace: "on-first-retry",
   },
   projects: [
     { name: "desktop", use: { ...devices["Desktop Chrome"] } },
-    { name: "mobile", use: { ...devices["Pixel 7"] }, testMatch: /layout\.spec\.ts/ },
+    { name: "mobile", use: { ...devices["Pixel 7"] } },
   ],
   webServer: {
     command: `npx next start -p ${PORT}`,

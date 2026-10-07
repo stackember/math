@@ -6,15 +6,15 @@ const choice = (n: number, level: 1 | 2 | 3, extra = {}) => ({
   type: "choice",
   level,
   tag: "a",
-  q: `Питання ${n}`,
+  q: `Умова ${n}`,
   options: ["1", "2", "3", "4", "5"],
   answer: 0,
   why: "Пояснення",
   ...extra,
 })
 
-/** Мінімальний валідний тренажер: 12 завдань, склад за правилами. */
-function validQuiz() {
+/** Мінімальний валідний тренажер: 10 завдань, склад за правилами. */
+function validTrainer() {
   return {
     tags: { a: "Правило А", b: "Правило Б" },
     questions: [
@@ -48,38 +48,65 @@ const messages = (data: unknown) => {
 
 describe("trainerSchema", () => {
   it("приймає тренажер за правилами", () => {
-    expect(messages(validQuiz())).toEqual([])
+    expect(messages(validTrainer())).toEqual([])
   })
 
-  it("ловить тег без опису й непокритий тег", () => {
-    const quiz = validQuiz()
-    quiz.questions[0].tag = "unknown"
-    quiz.tags = { ...quiz.tags, c: "Правило В" } as typeof quiz.tags
-    const result = messages(quiz)
+  it("ловить тег без опису, непокритий тег і поганий id тегу", () => {
+    const trainer = validTrainer()
+    trainer.questions[0].tag = "unknown"
+    trainer.tags = { ...trainer.tags, c: "Правило В", Погано: "x" } as typeof trainer.tags
+    const result = messages(trainer)
     expect(result).toContain("завдання 1: тег «unknown» не описаний у tags")
     expect(result).toContain("тег «c» не покритий жодним завданням")
+    expect(result).toContain("тег «Погано»: id латиницею в kebab-case")
+  })
+
+  it("не плутає успадковані властивості з тегами", () => {
+    const trainer = validTrainer()
+    trainer.questions[0].tag = "constructor"
+    expect(messages(trainer)).toContain("завдання 1: тег «constructor» не описаний у tags")
   })
 
   it("ловить варіанти, що залежать від порядку", () => {
-    const quiz = validQuiz()
-    quiz.questions[0] = choice(1, 1, { options: ["1", "2", "3", "4", "усі перелічені"] })
-    expect(messages(quiz)).toContain(
-      "завдання 1: «усі перелічені» залежить від порядку, а варіанти перемішуються"
-    )
+    const trainer = validTrainer()
+    trainer.questions[0] = choice(1, 1, { options: ["1", "2", "3", "4", "усі перелічені"] })
+    expect(messages(trainer).some((m) => m.startsWith("завдання 1: «усі перелічені»"))).toBe(true)
   })
 
   it("ловить порушення складу", () => {
-    const quiz = validQuiz()
-    quiz.questions = quiz.questions.filter((q) => q.type !== "match")
-    expect(messages(quiz)).toContain("тип match: потрібно 1–2, зараз 0")
+    const trainer = validTrainer()
+    trainer.questions = trainer.questions.filter((q) => q.type !== "match")
+    expect(messages(trainer)).toContain("тип match: потрібно 1–2, зараз 0")
   })
 
-  it("вимагає 5 варіантів і різні відповіді у відповідності", () => {
-    const quiz = validQuiz()
-    quiz.questions[0] = choice(1, 1, { options: ["1", "2", "3", "4"] })
-    ;(quiz.questions[7] as { answer: number[] }).answer = [0, 0, 1]
-    const result = messages(quiz)
-    expect(result.some((m) => m.includes("5"))).toBe(true)
-    expect(result).toContain("завдання 8: відповіді у відповідності мають бути різними")
+  it("пояснює форму кожного типу українською", () => {
+    const trainer = validTrainer()
+    trainer.questions[0] = choice(1, 1, { options: ["1", "2", "3", "4"] })
+    ;(trainer.questions[7] as { answer: number[] }).answer = [0, 0, 1]
+    Object.assign(trainer.questions[8], { answer: 0.33333 })
+    Object.assign(trainer.questions[9], { level: 4 })
+    const result = messages(trainer)
+    expect(result).toContain("має бути рівно 5 варіантів")
+    expect(result).toContain("відповіді у відповідності мають бути різними")
+    expect(result).toContain("answer: ціле число або десятковий дріб до 4 знаків після коми")
+    expect(result).toContain("level: 1 (легке), 2 (рівень НМТ) або 3 (пастка)")
+  })
+
+  it("ловить дублікати у відповідності й незнайомі поля", () => {
+    const trainer = validTrainer()
+    const match = trainer.questions[7] as { left: string[]; right: string[] }
+    match.left = ["1", "1", "3"]
+    match.right = ["А", "А", "В", "Г", "Д"]
+    trainer.questions[0] = choice(1, 1, { keep_order: true })
+    const result = messages(trainer)
+    expect(result).toContain("пункти повторюються")
+    expect(result).toContain("варіанти повторюються")
+    expect(result.some((m) => m.includes("keep_order"))).toBe(true)
+  })
+
+  it("без блоку trainer — пояснює, що він обов'язковий", () => {
+    expect(messages(undefined)).toEqual([
+      "немає блоку trainer: у practice.mdx тренажер обов'язковий",
+    ])
   })
 })

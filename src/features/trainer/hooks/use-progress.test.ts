@@ -2,40 +2,32 @@
 import { act, renderHook } from "@testing-library/react"
 import { beforeEach, describe, expect, it } from "vitest"
 
+import { createProgressStore } from "../model/progress"
 import { useProgress } from "./use-progress"
+
+const result = { score: 3, total: 5, tags: { a: { correct: 3, total: 5 } } }
 
 describe("useProgress", () => {
   beforeEach(() => localStorage.clear())
 
-  it("порожнє сховище — без результатів; запис дає best і last", () => {
-    const { result } = renderHook(() => useProgress("trainer:t"))
-    expect(result.current.stats).toEqual({})
+  it("типово читає й пише localStorage браузера", () => {
+    const { result: hook } = renderHook(() => useProgress("t"))
+    expect(hook.current.progress.best).toBeUndefined()
 
-    act(() => result.current.record({ score: 3, total: 5 }))
-    expect(result.current.stats).toEqual({
-      best: { score: 3, total: 5 },
-      last: { score: 3, total: 5 },
-    })
-    expect(JSON.parse(localStorage.getItem("trainer:t") ?? "")).toEqual(result.current.stats)
+    act(() => hook.current.record(result))
+    expect(hook.current.progress.best).toEqual({ score: 3, total: 5 })
+    expect(JSON.parse(localStorage.getItem("trainer:t") ?? "")).toEqual(hook.current.progress)
   })
 
-  it("гірший результат оновлює лише last", () => {
-    const { result } = renderHook(() => useProgress("trainer:t"))
-    act(() => result.current.record({ score: 5, total: 5 }))
-    act(() => result.current.record({ score: 2, total: 5 }))
-    expect(result.current.stats.best).toEqual({ score: 5, total: 5 })
-    expect(result.current.stats.last).toEqual({ score: 2, total: 5 })
-  })
-
-  it("читає старий ключ, якщо за новим ще нічого немає", () => {
-    localStorage.setItem("trainer:practice/t", JSON.stringify({ best: { score: 4, total: 5 } }))
-    const { result } = renderHook(() => useProgress("trainer:t", "trainer:practice/t"))
-    expect(result.current.stats.best).toEqual({ score: 4, total: 5 })
-  })
-
-  it("зіпсований запис — як порожнє сховище", () => {
-    localStorage.setItem("trainer:t", "{не json")
-    const { result } = renderHook(() => useProgress("trainer:t"))
-    expect(result.current.stats).toEqual({})
+  it("приймає інше сховище", () => {
+    const data = new Map<string, string>()
+    const store = createProgressStore(() => ({
+      getItem: (k) => data.get(k) ?? null,
+      setItem: (k, v) => void data.set(k, v),
+    }))
+    const { result: hook } = renderHook(() => useProgress("t", store))
+    act(() => hook.current.record(result))
+    expect(data.has("trainer:t")).toBe(true)
+    expect(localStorage.getItem("trainer:t")).toBeNull()
   })
 })

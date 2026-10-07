@@ -11,7 +11,7 @@ export interface TrainerKeys {
 /**
  * Клавіатура тренажера. Працює, коли фокус у картці або просто на сторінці (body);
  * не втручається, якщо фокус у меню, пошуку чи будь-якому іншому елементі поза карткою,
- * на кнопках і посиланнях усередині картки (їх натискає сам браузер),
+ * на кнопках, посиланнях і радіокнопках усередині картки (їх натискає сам браузер),
  * при автоповторі клавіші та з модифікаторами (Cmd/Ctrl/Alt — це команди браузера).
  */
 export function useTrainerKeyboard(
@@ -30,7 +30,7 @@ export function useTrainerKeyboard(
       if (!inCard && target !== document.body) return
 
       if (event.key === "Enter") {
-        if (inCard && target.closest("button, a, summary")) return
+        if (inCard && target.closest("button, a, summary, [role=radio]")) return
         event.preventDefault()
         onEnter()
       } else if (/^[1-9]$/.test(event.key) && target.tagName !== "INPUT") {

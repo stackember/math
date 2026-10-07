@@ -23,7 +23,8 @@ for (const url of CONTENT_URLS) {
 const sidebarHrefs = (page: import("@playwright/test").Page) =>
   page.locator("#nd-sidebar a").evaluateAll((links) => links.map((a) => a.getAttribute("href")))
 
-test("меню: теми в порядку meta.json розділу", async ({ page }) => {
+test("меню: теми в порядку meta.json розділу", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== "desktop", "на телефоні меню сховане в шухляді")
   await page.goto("/")
   await expect(page).toHaveTitle("Математика · НМТ")
 
@@ -33,7 +34,8 @@ test("меню: теми в порядку meta.json розділу", async ({ p
   expect([...positions].sort((a, b) => a - b)).toEqual(positions)
 })
 
-test("меню: практика — пункт «Практика» одразу під своєю темою", async ({ page }) => {
+test("меню: практика — пункт «Практика» одразу під своєю темою", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== "desktop", "на телефоні меню сховане в шухляді")
   await page.goto("/numbers/number-sets")
 
   const hrefs = await sidebarHrefs(page)

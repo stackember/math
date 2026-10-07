@@ -1,6 +1,8 @@
 import { readdirSync, readFileSync } from "node:fs"
 import { sep } from "node:path"
 
+import { parse } from "yaml"
+
 const CONTENT_DIR = new URL("../content/", import.meta.url)
 
 const FILES = readdirSync(CONTENT_DIR, { recursive: true })
@@ -21,3 +23,16 @@ export const NUMBERS_ORDER = (
     pages: string[]
   }
 ).pages.filter((slug) => slug !== "...")
+
+export type PracticeQuestion =
+  | { type: "choice"; answer: number }
+  | { type: "match"; answer: number[] }
+  | { type: "short"; answer: number }
+
+/** Завдання практики з її frontmatter (у порядку файлу — це `data-question` картки). */
+export function practiceQuestions(url: string): PracticeQuestion[] {
+  const text = readFileSync(new URL(`${url.slice(1)}.mdx`, CONTENT_DIR), "utf8")
+  const frontmatter = /^---\r?\n([\s\S]*?)\r?\n---/.exec(text)?.[1]
+  if (!frontmatter) throw new Error(`${url}: немає frontmatter`)
+  return (parse(frontmatter) as { trainer: { questions: PracticeQuestion[] } }).trainer.questions
+}

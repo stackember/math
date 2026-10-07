@@ -1,6 +1,9 @@
-import { cn } from "@/shared/lib/utils"
+import { Radio } from "@base-ui/react/radio"
 
-import type { RenderedQuestion } from "../model/schema"
+import { cn } from "@/shared/lib/utils"
+import { RadioGroup } from "@/shared/ui/radio-group"
+
+import type { RenderedQuestion } from "../model/question/registry"
 import { Html, LETTERS, type Mark } from "./shared"
 
 type ChoiceQuestion = Extract<RenderedQuestion, { type: "choice" }>
@@ -36,23 +39,31 @@ function markOf(option: number, { question, selected, checked }: Props): Mark {
   return option === selected ? "wrong" : "idle"
 }
 
+/**
+ * Варіанти А–Д як група радіокнопок (Base UI): стрілки й пробіл працюють самі.
+ * Після перевірки група лише для читання: видно, що обрано й де правильна відповідь.
+ * `data-option` — індекс варіанта у frontmatter (для e2e, незалежно від перемішування).
+ */
 export function ChoiceAnswer(props: Props) {
   const { question, order, selected, checked, onSelect } = props
   return (
-    <div role="radiogroup" aria-label="Варіанти відповіді" className="grid gap-2">
+    <RadioGroup
+      aria-label="Варіанти відповіді"
+      data-answer="choice"
+      value={selected === null ? null : String(selected)}
+      readOnly={checked}
+      onValueChange={(value) => onSelect(Number(value))}
+    >
       {order.map((option, position) => {
         const mark = markOf(option, props)
         return (
-          <button
+          <Radio.Root
             key={option}
-            type="button"
-            role="radio"
-            aria-checked={option === selected}
-            disabled={checked}
-            onClick={() => onSelect(option)}
+            value={String(option)}
+            data-option={option}
             className={cn(
               "flex w-full items-center gap-3 rounded-lg border border-border bg-background px-3 py-2.5 text-left text-base text-foreground transition-colors outline-none",
-              "focus-visible:ring-3 focus-visible:ring-ring/50 enabled:cursor-pointer enabled:hover:border-primary",
+              "not-data-readonly:cursor-pointer not-data-readonly:hover:border-primary focus-visible:ring-3 focus-visible:ring-ring/50",
               optionStyles[mark]
             )}
           >
@@ -65,9 +76,9 @@ export function ChoiceAnswer(props: Props) {
               {LETTERS[position]}
             </span>
             <Html html={question.options[option]} />
-          </button>
+          </Radio.Root>
         )
       })}
-    </div>
+    </RadioGroup>
   )
 }

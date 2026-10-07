@@ -83,6 +83,11 @@ export default defineConfig([
           policies: [
             // зовнішні пакети дозволені всім, крім винятків нижче
             { from: element("*"), allow: { to: { module: { origin: "external" } } } },
+            // модулі Node (node:fs, node:path) — лише content/model: читає рисунки завдань під час збирання
+            {
+              from: element("model", { feature: "content" }),
+              allow: { to: { module: { origin: "core" } } },
+            },
             // model — без React, Next і DOM-бібліотек
             {
               from: element("model"),

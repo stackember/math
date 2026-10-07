@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest"
 
 import { answerHtml } from "./answer-text"
-import type { RenderedQuestion } from "./schema"
+import type { RenderedQuestion } from "./question/registry"
 
 const common = { id: 0, level: 1 as const, tag: "t", q: "q", why: "why" }
 

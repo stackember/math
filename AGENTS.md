@@ -38,7 +38,7 @@ content/                          контент (MDX): одна папка — 
   <розділ>/<тема>/index.mdx       теорія теми            → /<розділ>/<тема>
   <розділ>/<тема>/practice.mdx    практика (тренажер у frontmatter) → /<розділ>/<тема>/practice
   <розділ>/<тема>/<сторінка>.mdx  підсторінка великої теми (за потреби)
-source.config.ts                  MDX-плагіни: KaTeX (суворий), читабельні формули в пошуку
+source.config.ts                  MDX-плагіни: формули зі спільного конвеєра (shared/lib/markdown), читабельні формули в пошуку
 src/                              три рівні: app → features → shared
   app/                            рівень 1, лише маршрути Next: layout, [[...slug]]/page, api/search, error, not-found, global.css
   features/                       рівень 2, можливості; кожна — сегменти model/ hooks/ components/
@@ -46,16 +46,17 @@ src/                              три рівні: app → features → shared
       model/                      source (loader), frontmatter (схеми за іменем файлу + рендер тренажера), topic, page-tree
       components/                 topic-switch, mdx-components (реєстр компонентів для MDX)
     trainer/                      тренажер — без Next і Fumadocs
-      model/                      exam (профіль іспиту), schema, check, session, storage, verdict, answer-text,
-                                  render (лише для збирання: Markdown+KaTeX → HTML)
+      model/                      exam (профіль іспиту), question/ (реєстр типів завдань: base, choice, match, short, registry),
+                                  schema (+ lint — евристики якості), session, order, number, progress (сховище прогресу),
+                                  verdict, answer-text, render (лише для збирання: Markdown+KaTeX → HTML, рисунки)
       hooks/                      use-trainer-session, use-progress, use-trainer-keyboard, use-step-focus, use-mounted
-      components/                 trainer (вхід для сторінки), trainer-card, choice-answer, match-answer, short-answer,
-                                  feedback, results, shared
+      components/                 trainer (вхід для сторінки), trainer-card, answer-field (поле за типом завдання),
+                                  choice-answer, match-answer, short-answer, feedback, results, shared
     diagram/                      схеми для теорії, усі в одних сегментах: model/number-sets, hooks/use-delayed-clear,
                                   components/number-sets (сервер, KaTeX) + number-sets-diagram (клієнт)
   shared/                         рівень 3, спільне без домену; про features не знає
     ui/                           shadcn — лише через `npx shadcn@latest add <name>`, руками не правити
-    lib/                          math (KaTeX), latex-text (пошук), i18n, utils
+    lib/                          markdown (Markdown+KaTeX → HTML, спільний конвеєр), math (KaTeX), latex-text (пошук), i18n, utils
     test/                         налаштування Vitest
 e2e/                              Playwright-тести; e2e/content.ts знаходить усі сторінки й практики
 ```
@@ -75,7 +76,7 @@ e2e/                              Playwright-тести; e2e/content.ts знах
 1. Залежності лише вниз: `app` → `features` → `shared`. `shared` ніколи не імпортує з `features` чи `app`. Усередині можливості: `components` → `hooks` → `model`.
 2. Між можливостями імпортів немає, крім двох: `content/model` → `trainer/model` (схема frontmatter перевіряє тренажер) і `content/components` → `components` будь-якої можливості (реєстр MDX).
 3. `next/*` і `fumadocs-*` знають лише `app` і `content`. У `model/` немає `react`.
-4. `model/render.ts` — лише для збирання: його імпортує тільки `content/model/frontmatter.ts`.
+4. `model/render.ts` — лише для збирання: його імпортує тільки `content/model/frontmatter.ts`. Модулі Node (`node:fs`, `node:path`) — лише в `content/model`.
 5. Файл у `src/` поза `app/`, `features/<можливість>/<сегмент>/` чи `shared/{ui,lib,test}/` — помилка `no-unknown-files`. Потрібне нове правило — міняй конфіг, не обходь.
 6. Файли — kebab-case (перевіряє лінт); компонент експортується PascalCase (`trainer-card.tsx` → `TrainerCard`). Barrel-файлів `index.ts` немає — імпорти прямі.
 7. `knip` у `verify`: мертві експорти, файли й залежності — помилка. Не експортуй «про запас».
@@ -85,6 +86,7 @@ e2e/                              Playwright-тести; e2e/content.ts знах
 - **Тему:** папка `content/<розділ>/<slug>/` з `index.mdx` (`title`, `description`) + slug у `pages` файлу `content/<розділ>/meta.json` у потрібне місце (порядок вивчення). Без цього тема все одно з'явиться (через `"..."`), але в кінці списку. Велику тему ділити на підсторінки в тій самій папці (порядок — `meta.json` теми: `["...", "practice"]`).
 - **Розділ:** папка `content/<розділ>/` з `meta.json` (`title`, `icon` з lucide, `pages`) + slug у `content/meta.json`.
 - **Практику:** тільки skill `/practice <slug>`. Файл `practice.mdx` поруч з `index.mdx`; тренажер, пункт меню «Практика», кнопки переходу й тести з'являються самі.
+- **Тип завдання:** модуль `src/features/trainer/model/question/<type>.ts` — схема Zod (`strictObject`, повідомлення українською) і об'єкт `QuestionModule` (рендер власних текстів, порядок показу, чернетка, перевірка, відповідь на бланку) + рядок у `question/registry.ts` + компонент поля відповіді в `components/` + гілка в `components/answer-field.tsx`. TypeScript не дасть пропустити жоден крок; reducer, картка, результати й e2e лишаються без змін. Правило якості (як «варіант залежить від порядку») — запис у `model/lint.ts`.
 - **Схему для теорії:** папка `src/features/diagram/` за сегментами + реєстрація в `src/features/content/components/mdx-components.tsx` + e2e-тест (див. «Схеми й ілюстрації»).
 - **Компонент shadcn:** `npx shadcn@latest add <name>`.
 
@@ -122,15 +124,18 @@ e2e/                              Playwright-тести; e2e/content.ts знах
 - **Профіль іспиту** — `src/features/trainer/model/exam.ts`: назва сайту, літери варіантів, форма відповідності, склад тренажера, рівні. Усе, що залежить від формату НМТ, лише там.
 - **Тренажер показує сторінка сама**, якщо у frontmatter є `trainer` (`src/app/[[...slug]]/page.tsx`). У MDX нічого вставляти не треба.
 - **Формули завдань рендеряться під час збирання у схемі frontmatter** (`trainerSchema.transform(renderTrainer)` у `src/features/content/model/frontmatter.ts`): у `page.data.trainer` уже HTML, KaTeX у браузер не потрапляє, а тренажер не має серверного коду.
+- **Один конвеєр Markdown** — `src/shared/lib/markdown.ts`: ті самі плагіни (GFM, `remark-math`, KaTeX суворий) для сторінок MDX (`source.config.ts`) і текстів тренажера. Умова `q` і пояснення `why` — будь-який Markdown (абзаци, `$$…$$`, таблиці); варіанти, пункти відповідності й назви правил — один рядок (`md.inline`). Рисунок до завдання — `figure: { src, alt }`: файл з папки теми вбудовується в HTML даними під час збирання.
+- **Типи завдань — реєстр** (`src/features/trainer/model/question/registry.ts`): reducer сесії, картка й e2e не знають конкретних типів — усе через `moduleOf(question)` і `updateDraft`. Єдине місце, де тип розгалужується в інтерфейсі, — `components/answer-field.tsx`.
 - **Картка тренажера монтується після гідрації** (`useMounted`): порядок завдань випадковий, результати — з `localStorage`; до монтування сервер і браузер показують однакову заглушку. `next/dynamic` не потрібен.
 - **Клавіатура тренажера** (`use-trainer-keyboard`): Enter і цифри працюють, коли фокус у картці або просто на сторінці; меню, пошук, кнопки й поля поза карткою не зачіпає; автоповтор і Cmd/Ctrl/Alt ігнорує.
 - **Перевірки під час збирання** (повідомлення — українською, з місцем помилки):
   - схема frontmatter залежить від імені файлу: `practice.mdx` зобов'язаний мати `trainer`, решта сторінок — не можуть;
-  - склад і оформлення тренажера — схема в `src/features/trainer/model/schema.ts`;
+  - склад і оформлення тренажера — схема в `src/features/trainer/model/schema.ts` і `question/*.ts` (Zod з українськими повідомленнями: `z.locales.uk()`, `strictObject` — незнайоме поле це помилка);
   - зламана формула в MDX чи в тексті тренажера — `rehypeKatexStrict` (сам `rehype-katex` лише малює червоний текст і збирання не зупиняє);
-  - текст тренажера не в один рядок (список, абзаци) — `renderInline`.
+  - варіант, пункт відповідності чи назва правила не в один рядок — `md.inline`; рисунок, якого немає, — `frontmatter.ts`;
+  - евристики якості завдань (варіант «усі перелічені» без `keepOrder`) — список правил у `src/features/trainer/model/lint.ts`.
 - **Пошук** — вбудований Orama Fumadocs (`/api/search`), багатомовний. Формули в індексі — текстом через `latexToText`. Тексти завдань з frontmatter не індексуються.
-- **Ключ збережених результатів** — `trainer:<slug теми>` (без розділу): переміщення теми між розділами не стирає прогрес; slug теми після публікації не змінювати. Старий ключ `trainer:practice/<slug>` читається як запасний.
+- **Прогрес** — за інтерфейсом `ProgressStore` (`src/features/trainer/model/progress.ts`); реалізація — localStorage з ключем `trainer:<slug теми>` (без розділу: переміщення теми між розділами не стирає прогрес; slug після публікації не змінювати). Запис має `version`; старі записи (без версії, старий ключ `trainer:practice/<slug>`) читаються й мігрують у `migrate`. Зберігаються найкращий і останній результат і накопичені правильно/усього за правилами теми.
 - **Помилка під час показу сторінки** — `src/app/error.tsx` (меню лишається), а не порожній екран.
 - Підписи інтерфейсу Fumadocs — у `src/shared/lib/i18n.ts`; новий рядок інтерфейсу без перекладу — додати туди.
 
@@ -139,7 +144,7 @@ e2e/                              Playwright-тести; e2e/content.ts знах
 - **Автоматично для нового контенту:** кожна сторінка з `content/` перевіряється на 200, помилки в консолі й червоні формули; кожна практика — повним проходженням (`e2e/content.ts` знаходить їх сам).
 - **`model/`** — юніт-тести поруч із модулем, у Node. **`hooks/`** — `renderHook` з `@testing-library/react`, файл починається з `// @vitest-environment jsdom`. Компоненти з умовною логікою — RTL; решту покривають e2e.
 - **Нова схема чи інтерактивний компонент** — e2e-тест у `e2e/` через `data-*` стани (зразок — `e2e/diagrams.spec.ts`).
-- Локатори тренажера в e2e — у межах картки `[data-slot=card]`, щоб таблиці й поля шпаргалки не заважали.
+- Локатори тренажера в e2e — у межах картки `[data-slot=card]`. Контракт з тестами — `data-*`: картка несе `data-question` (індекс завдання у frontmatter), поле відповіді — `data-answer` (тип), варіанти — `data-option` (індекс у frontmatter, незалежно від перемішування), рядки відповідності — `data-row`. `e2e/content.ts` читає frontmatter практики (`yaml`) і відповідає правильно — повне проходження перевіряє й перевірку відповідей.
 - Кліки одразу після завантаження сторінки можуть потрапити до гідрації React: обгортати в `expect(...).toPass()` (зразок — пошук у `e2e/site.spec.ts`).
 
 ## Залежності

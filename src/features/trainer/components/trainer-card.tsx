@@ -11,26 +11,24 @@ import { useProgress } from "../hooks/use-progress"
 import { useStepFocus } from "../hooks/use-step-focus"
 import { useTrainerKeyboard } from "../hooks/use-trainer-keyboard"
 import { useTrainerSession } from "../hooks/use-trainer-session"
-import { isAnswered } from "../model/check"
+import { select } from "../model/question/choice"
+import { moduleOf, updateDraft } from "../model/question/registry"
 import type { RenderedTrainer } from "../model/schema"
 import { isLastStep } from "../model/session"
-import { ChoiceAnswer } from "./choice-answer"
+import { AnswerField } from "./answer-field"
 import { Feedback, Warning } from "./feedback"
-import { MatchAnswer } from "./match-answer"
 import { Results } from "./results"
 import { Html, LEVELS } from "./shared"
-import { ShortAnswer } from "./short-answer"
 
 interface Props {
   trainer: RenderedTrainer
-  storageKey: string
-  legacyStorageKey?: string
+  trainerId: string
 }
 
 /** Картка тренажера: композиція hooks (стан, прогрес, клавіатура, фокус) і презентаційних компонентів. */
-export function TrainerCard({ trainer, storageKey, legacyStorageKey }: Props) {
-  const progress = useProgress(storageKey, legacyStorageKey)
-  const t = useTrainerSession(trainer.questions, { onComplete: progress.record })
+export function TrainerCard({ trainer, trainerId }: Props) {
+  const { progress, record } = useProgress(trainerId)
+  const t = useTrainerSession(trainer.questions, { onComplete: record })
   const cardRef = useRef<HTMLDivElement>(null)
   const mainButtonRef = useRef<HTMLButtonElement>(null)
 
@@ -45,25 +43,26 @@ export function TrainerCard({ trainer, storageKey, legacyStorageKey }: Props) {
     onDigit: (digit) => {
       if (t.step?.question.type !== "choice" || t.checked) return
       const option = t.step.order[digit - 1]
-      if (option !== undefined) t.choose(option)
+      if (option !== undefined) t.answer(updateDraft("choice", select(option)))
     },
   })
 
   const { session, step } = t
-  const { stats } = progress
+  const answered = step ? moduleOf(step.question).isAnswered(session.draft) : false
 
   return (
     <div className="space-y-3">
-      {stats.best && stats.last && (
+      {progress.best && progress.last && (
         <p className="text-sm text-muted-foreground">
-          Найкращий результат: {stats.best.score}/{stats.best.total} · останній: {stats.last.score}/
-          {stats.last.total}
+          Найкращий результат: {progress.best.score}/{progress.best.total} · останній:{" "}
+          {progress.last.score}/{progress.last.total}
         </p>
       )}
 
       <Card
         ref={cardRef}
         tabIndex={-1}
+        data-question={step?.question.id}
         className="scroll-mt-20 gap-5 py-5 outline-none [--card-spacing:--spacing(5)]"
       >
         {!step ? (
@@ -106,34 +105,17 @@ export function TrainerCard({ trainer, storageKey, legacyStorageKey }: Props) {
                 html={step.question.q}
                 className="text-lg leading-snug font-semibold text-foreground"
               />
+              {step.question.figureHtml && <Html as="div" html={step.question.figureHtml} />}
             </CardHeader>
 
             <CardContent key={`${session.mode}-${session.index}`}>
-              {step.question.type === "choice" && session.draft.type === "choice" && (
-                <ChoiceAnswer
-                  question={step.question}
-                  order={step.order}
-                  selected={session.draft.choice}
-                  checked={t.checked}
-                  onSelect={t.choose}
-                />
-              )}
-              {step.question.type === "match" && session.draft.type === "match" && (
-                <MatchAnswer
-                  question={step.question}
-                  selected={session.draft.match}
-                  checked={t.checked}
-                  onSelect={t.match}
-                />
-              )}
-              {step.question.type === "short" && session.draft.type === "short" && (
-                <ShortAnswer
-                  value={session.draft.value}
-                  checked={t.checked}
-                  correct={t.correct}
-                  onChange={t.input}
-                />
-              )}
+              <AnswerField
+                step={step}
+                draft={session.draft}
+                checked={t.checked}
+                correct={t.correct}
+                onAnswer={t.answer}
+              />
 
               {session.warning && <Warning text={session.warning} />}
               {t.checked && <Feedback step={step} correct={t.correct} />}
@@ -144,7 +126,7 @@ export function TrainerCard({ trainer, storageKey, legacyStorageKey }: Props) {
                 ref={mainButtonRef}
                 size="lg"
                 className="px-5 text-base"
-                disabled={!t.checked && !isAnswered(session.draft)}
+                disabled={!t.checked && !answered}
                 onClick={t.checked ? t.next : t.check}
               >
                 {t.checked ? (isLastStep(session) ? "Результат" : "Далі →") : "Перевірити"}

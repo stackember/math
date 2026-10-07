@@ -7,10 +7,8 @@ import { TrainerCard } from "./trainer-card"
 export interface TrainerProps {
   /** Дані тренажера з frontmatter, уже відрендерені під час збирання (HTML замість Markdown). */
   trainer: RenderedTrainer
-  /** Ключ збережених результатів у localStorage. */
-  storageKey: string
-  /** Ключ до переїзду сторінок, щоб не пропав прогрес. */
-  legacyStorageKey?: string
+  /** Slug теми — ключ збережених результатів; після публікації не змінювати. */
+  trainerId: string
 }
 
 /**
