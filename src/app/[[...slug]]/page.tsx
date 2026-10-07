@@ -11,6 +11,7 @@ import { topicId, topicOf } from "@/features/content/model/topic"
 import { Trainer } from "@/features/trainer/components/trainer"
 
 import { SITE } from "../site"
+import { SubjectPage, subjectPage, subjectPageMetadata, subjectPageParams } from "./subject-pages"
 
 /**
  * Сусідні сторінки для футера «‹ ›» з повними назвами. У дереві меню теорія і практика
@@ -27,8 +28,12 @@ function footerItems(url: string) {
   return { previous: full(previous), next: full(next) }
 }
 
+/** Усі адреси виду /<предмет>/… — тут: контент з content/ і сторінки предмета (тест, прогрес). */
 export default async function Page(props: PageProps<"/[[...slug]]">) {
-  const { slug } = await props.params
+  const { slug = [] } = await props.params
+  const special = subjectPage(slug)
+  if (special) return <SubjectPage {...special} />
+
   const page = source.getPage(slug)
   if (!page) notFound()
 
@@ -58,11 +63,14 @@ export default async function Page(props: PageProps<"/[[...slug]]">) {
 }
 
 export function generateStaticParams() {
-  return source.generateParams()
+  return [...source.generateParams(), ...subjectPageParams()]
 }
 
 export async function generateMetadata(props: PageProps<"/[[...slug]]">): Promise<Metadata> {
-  const { slug } = await props.params
+  const { slug = [] } = await props.params
+  const special = subjectPage(slug)
+  if (special) return subjectPageMetadata(special)
+
   const page = source.getPage(slug)
   if (!page) notFound()
 

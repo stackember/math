@@ -14,11 +14,23 @@ const subjectPages = (subject: string): PageTree.Node[] => [
   { type: "page", name: "Прогрес", url: `/${subject}/progress` },
 ]
 
+/** Перша сторінка в піддереві — щоб дізнатися предмет кореневої папки з її адреси. */
+function firstPageUrl(nodes: PageTree.Node[]): string | undefined {
+  for (const node of nodes) {
+    if (node.type === "page") return node.url
+    if (node.type === "folder") {
+      const url = node.index?.url ?? firstPageUrl(node.children)
+      if (url) return url
+    }
+  }
+}
+
 /**
  * Меню: назва теми лише розгортає її, а всередині — «Теорія», «Практика» й підсторінки.
  * Інакше Fumadocs робить назву теми посиланням на теорію, і на телефоні тап веде на сторінку
  * й закриває меню, не показавши практику. Тема без практики й підсторінок — звичайний пункт.
- * Предмет (`root`) не чіпаємо: його index.mdx — огляд, а в кінці — змішаний тест і прогрес.
+ * Предмет (`root`) Fumadocs показує як окреме дерево, а його index.mdx — першим пунктом (огляд);
+ * у кінець дописуємо змішаний тест і прогрес.
  */
 export function simplifyTree(nodes: PageTree.Node[]): PageTree.Node[] {
   return nodes.map((node) => {
@@ -29,7 +41,8 @@ export function simplifyTree(nodes: PageTree.Node[]): PageTree.Node[] {
 
     const children = simplifyTree(node.children)
     if (node.root) {
-      const subject = node.index && slugsOfUrl(node.index.url)[0]
+      const url = firstPageUrl(children)
+      const subject = url && slugsOfUrl(url)[0]
       return { ...node, children: subject ? [...children, ...subjectPages(subject)] : children }
     }
     if (!node.index) return { ...node, children }

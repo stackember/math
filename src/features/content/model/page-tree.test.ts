@@ -32,14 +32,16 @@ describe("simplifyTree", () => {
     ])
   })
 
-  it("предмет (root) лишається папкою з оглядом, у кінці — змішаний тест і прогрес", () => {
-    const index = page("/math", "Математика")
+  it("предмет (root): огляд лишається першим пунктом, у кінці — змішаний тест і прогрес", () => {
+    // Fumadocs не робить index.mdx кореневої папки її `index`, а кладе першою сторінкою
+    const overview = page("/math", "Математика")
     const theory = page("/math/numbers/modulus", "Модуль числа")
-    const subject: PageTree.Folder = { ...folder("Математика", index, [theory]), root: true }
+    const section = folder("Числа", undefined, [theory])
+    const subject: PageTree.Folder = { ...folder("Математика", undefined, [overview, section]), root: true }
     const [result] = simplifyTree([subject]) as PageTree.Folder[]
-    expect(result.index).toEqual(index)
     expect(result.children.map((c) => (c.type === "page" ? c.url : c.type))).toEqual([
-      "/math/numbers/modulus",
+      "/math",
+      "folder",
       "separator",
       "/math/test",
       "/math/progress",
